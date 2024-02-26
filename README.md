@@ -8,6 +8,7 @@ Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 
 - [Experience Plugin](https://github.com/GaelicThunder/Experience-Plugin-Pwnagotchi)
 - [pisugar2](https://github.com/tisboyo/pwnagotchi-pisugar2-plugin)
+- [home_base](https://github.com/troystauffer/home_base)
 - Clock Custom to side
   
 ## Extras
