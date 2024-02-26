@@ -4,7 +4,7 @@ Customized Plugins for download from zip file
 
 Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayofelony/pwnagotchi)
 
-## References
+## Reference of Main Plugins
 
 - [Experience Plugin](https://github.com/GaelicThunder/Experience-Plugin-Pwnagotchi)
 - [pisugar2](https://github.com/tisboyo/pwnagotchi-pisugar2-plugin)
