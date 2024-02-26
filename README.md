@@ -9,14 +9,21 @@ Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 - [Experience Plugin](https://github.com/GaelicThunder/Experience-Plugin-Pwnagotchi)
 - [pisugar2](https://github.com/tisboyo/pwnagotchi-pisugar2-plugin)
 - [home_base](https://github.com/troystauffer/home_base)
+
+## Personal Plugins
+
 - Clock Custom to side
   
 ## Extras
 
 - [pwnmothership](https://github.com/ad/pwnmothership)
 
+## Master Plugin List
+
+- [wpa_2's awesome list](https://github.com/wpa-2/pwnagotchi-plugins)
 
 ## Goal List of Plugins
+
 ```
 main.custom_plugin_repos = [
  "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
