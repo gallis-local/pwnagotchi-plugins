@@ -20,7 +20,7 @@ Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 
 ## Master Plugin List
 
-- [wpa_2's awesome list](https://github.com/wpa-2/pwnagotchi-plugins)
+- [wpa-2's awesome list](https://github.com/wpa-2/pwnagotchi-plugins)
 
 ## Goal List of Plugins
 
