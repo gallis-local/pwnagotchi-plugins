@@ -19,8 +19,6 @@ Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 ```
 main.custom_plugin_repos = [
  "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
- "https://github.com/tisboyo/pwnagotchi-pisugar2-plugin/archive/master.zip",
- "https://github.com/nullm0ose/pwnagotchi-plugin-pisugar3/archive/master.zip",
  "https://github.com/gallis-local/pwnagotchi-plugins/archive/main.zip",
 ]
 ```
