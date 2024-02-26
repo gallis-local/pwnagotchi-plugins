@@ -53,7 +53,11 @@ main.custom_plugin_repos = [
 ]
 ```
 
+## Credits
 
+All referenced plugins will have source repository linked
+
+This repo is soley for ease of install and keeping the latest versions of these plugins in one place.
 
 
 
