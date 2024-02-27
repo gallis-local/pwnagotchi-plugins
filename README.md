@@ -4,6 +4,11 @@ Customized Plugins for download from zip file
 
 Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayofelony/pwnagotchi)
 
+## Utility Scripts
+
+* pwnagotchi-scripts - execute on the pwnagotchi via SSH
+* scripts - execute on host machine of USB OTG connection
+
 ## Reference of Main Plugins
 
 - [Experience Plugin](https://github.com/GaelicThunder/Experience-Plugin-Pwnagotchi)

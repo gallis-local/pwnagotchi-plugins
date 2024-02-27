@@ -1,0 +1,6 @@
+main.plugins.s3_upload.enabled = false
+main.plugins.s3_upload.region = ""
+main.plugins.s3_upload.endpoint_url = ""
+main.plugins.s3_upload.access_key = ""
+main.plugins.s3_upload.secret_key = ""
+main.plugins.s3_upload.bucket = "pwnagotchi"
