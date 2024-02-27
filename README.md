@@ -26,6 +26,7 @@ Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 ## Master Plugin List
 
 - [wpa-2's awesome list](https://github.com/wpa-2/pwnagotchi-plugins)
+- [itsdarklikehell's awesome list](https://github.com/itsdarklikehell/pwnagotchi-plugins)
 
 ## Goal List of Plugins
 
