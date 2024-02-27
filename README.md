@@ -2,8 +2,8 @@
 
 Customized Plugins for download from zip file
 
-Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayofelony/pwnagotchi)
-Alternative Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum-ice/pwnagotchi/releases)
+RPIZERO2W Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayofelony/pwnagotchi)
+RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum-ice/pwnagotchi/releases)
 
 ## Master Plugin List
 
