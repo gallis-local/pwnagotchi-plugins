@@ -3,6 +3,13 @@
 Customized Plugins for download from zip file
 
 Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayofelony/pwnagotchi)
+Alternative Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum-ice/pwnagotchi/releases)
+
+## Master Plugin List
+
+- [wpa-2's awesome list](https://github.com/wpa-2/pwnagotchi-plugins)
+- [itsdarklikehell's awesome list](https://github.com/itsdarklikehell/pwnagotchi-plugins)
+
 
 ## Utility Scripts
 
@@ -22,11 +29,6 @@ Utilizing Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 ## Extras
 
 - [pwnmothership](https://github.com/ad/pwnmothership)
-
-## Master Plugin List
-
-- [wpa-2's awesome list](https://github.com/wpa-2/pwnagotchi-plugins)
-- [itsdarklikehell's awesome list](https://github.com/itsdarklikehell/pwnagotchi-plugins)
 
 ## Goal List of Plugins
 
