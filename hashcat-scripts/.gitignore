@@ -1,0 +1,9 @@
+.env
+network-list.txt
+.idea
+handshakes
+hashcat/scripts
+ssh
+hashcat/hashcat
+wordlists
+hashcat
