@@ -34,8 +34,7 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 
 ```
 main.custom_plugin_repos = [
- "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
- "https://github.com/gallis-local/pwnagotchi-plugins/archive/main.zip",
+ "https://github.com/itsdarklikehell/pwnagotchi-plugins"
 ]
 ```
 
