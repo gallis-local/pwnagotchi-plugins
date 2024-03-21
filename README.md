@@ -2,15 +2,13 @@
 
 The realest - **https://pwnagotchi.org/**
 
-Customized Plugins for download from zip file
-
 RPIZERO2W Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayofelony/pwnagotchi)
+
 RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum-ice/pwnagotchi/releases)
 
 ## Master Plugin List
 
 - [itsdarklikehell's awesome list](https://github.com/itsdarklikehell/pwnagotchi-plugins)
-
 
 ## Utility Scripts
 
@@ -25,7 +23,7 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 
 - [pwnmothership](https://github.com/ad/pwnmothership)
 
-## List of Plugins
+## Current Repo List of Plugins
 
 ```
 main.custom_plugin_repos = [
@@ -48,9 +46,9 @@ main.custom_plugin_repos = [
 
 ## Credits
 
-All referenced plugins will have source repository linked
+All referenced plugins will have source repository linked such as above
 
-This repo is soley for ease of install and keeping the latest versions of these plugins in one place.
+This repo is soley for ease of install of wip and custom plugins.
 
 
 
