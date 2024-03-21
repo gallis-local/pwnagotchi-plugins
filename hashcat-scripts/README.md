@@ -7,8 +7,6 @@ Basically a linux version of [pwnagotchi-tools](https://github.com/mtagius/pwnag
 - Convert pcap to hc22000 format for hashcat
 
 
-
-
 Required:
 - [hcxtools](https://launchpad.net/ubuntu/+source/hcxtools) `sudo apt-get -y install hcxtools` 
 - [7z](https://www.7-zip.org/download.html) `sudo apt-get -y install p7zip-full`
