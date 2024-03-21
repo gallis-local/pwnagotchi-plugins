@@ -15,19 +15,15 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 * pwnagotchi-scripts - execute on the pwnagotchi via SSH
 * scripts - execute on host machine of USB OTG connection
 
-## Personal Plugins
+## Custom Plugins
 
 - Clock Custom to side
-  
-## Extras
-
-- [pwnmothership](https://github.com/ad/pwnmothership)
 
 ## Current Repo List of Plugins
 
 ```
 main.custom_plugin_repos = [
- "https://github.com/itsdarklikehell/pwnagotchi-plugins"
+ "https://github.com/itsdarklikehell/pwnagotchi-plugins/archive/refs/heads/master.zip"
 ]
 ```
 
