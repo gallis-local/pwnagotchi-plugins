@@ -33,7 +33,8 @@ main.custom_plugin_repos = [
 sudo pwnagotchi plugins update
 sudo pwnagotchi plugins install exp
 sudo pwnagotchi plugins install show_pwd
-sudo pwnagotchi plugins install session-status_ng
+sudo pwnagotchi plugins install session-stats_ng
+
 ```
 
 ## Original List of Plugins from Image
