@@ -27,6 +27,15 @@ main.custom_plugin_repos = [
 ]
 ```
 
+## Initial Setup
+
+```
+sudo pwnagotchi plugins update
+sudo pwnagotchi plugins install exp
+sudo pwnagotchi plugins install show_pwd
+sudo pwnagotchi plugins install session-status_ng
+```
+
 ## Original List of Plugins from Image
 
 ```
