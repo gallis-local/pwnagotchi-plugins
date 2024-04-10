@@ -15,6 +15,10 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 * pwnagotchi-scripts - execute on the pwnagotchi via SSH
 * scripts - execute on host machine of USB OTG connection
 
+## 3D Printed Cases
+
+A selection of the most consistent fitting 3D printed cases based on tolerances for both regular and the slimagotchi mod.
+
 ## Custom Plugins
 
 - Clock Custom to side
@@ -34,7 +38,14 @@ sudo pwnagotchi plugins update
 sudo pwnagotchi plugins install exp
 sudo pwnagotchi plugins install show_pwd
 sudo pwnagotchi plugins install session-stats_ng
-
+# PiSugar3 Setup
+sudo pwnagotchi plugins install pisugar3
+sudo pwnagotchi plugins disable sessions-stats
+sudo pwnagotchi plugins enable session-stats_ng
+sudo pwnagotchi plugins enable show_pwd
+sudo pwnagotchi plugins enable exp
+sudo pwnagotchi plugins enable pisugar3
+# Extra Plugins config for config.toml additions
 ```
 
 ## Original List of Plugins from Image

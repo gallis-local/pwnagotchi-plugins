@@ -1,5 +1,7 @@
 # PiSugar3 Install
 
+Amazon Link: https://a.co/d/i8ofIUg
+
 - https://github.com/nullm0ose/pwnagotchi-plugin-pisugar3
 
 ## Basic Install Script
