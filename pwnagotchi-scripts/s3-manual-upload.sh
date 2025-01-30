@@ -12,18 +12,20 @@
 # S3_HOST - The AWS S3 host (default: s3.amazonaws.com)
 
 
-# Define S3 VARS
-S3_KEY="${S3_KEY:-}"
-S3_SECRET="${S3_SECRET:-}"
-S3_REGION="${S3_REGION:-}"
+# Define S3 VARS with validation
+if [ -z "$S3_KEY" ] || [ -z "$S3_SECRET" ] || [ -z "$S3_REGION" ] || [ -z "$S3_BUCKET" ]; then
+  echo "Error: Missing required environment variables."
+  echo "Ensure S3_KEY, S3_SECRET, S3_REGION, and S3_BUCKET are set."
+  exit 1
+fi
+
 S3_HOST="${S3_HOST:-s3.amazonaws.com}"
-S3_BUCKET="${S3_BUCKET:-pwnagotchi}"
 S3_FOLDER="${S3_FOLDER:-handshakes}"
 
 # Define the source directory of the handshakes
 SOURCE_DIR="/root/handshakes"
 
-# Get the current date - month/day/year format
+# Get the current date - year-month-day format
 CURRENT_DATE=$(date +%Y-%m-%d)
 
 # Define the target file with the current date in the filename
@@ -34,20 +36,18 @@ echo "Creating archive of $SOURCE_DIR"
 tar -czf $TARGET_FILE -C $SOURCE_DIR .
 echo "Archive created at $TARGET_FILE"
 
-# S3 upload configuration and curl command
+# S3 upload configuration and curl command with improved security
 hostname=$(hostname)
 bucket=$S3_BUCKET
 file=$TARGET_FILE
 dest_file=$(basename "$file")
 host=$S3_HOST
 folder=$S3_FOLDER
-s3_key=$S3_KEY
-s3_secret=$S3_SECRET
 resource="/${bucket}/${hostname}/${folder}/${dest_file}"
 content_type="application/octet-stream"
-date=`date -R`
+date=$(date -R)
 _signature="PUT\n\n${content_type}\n${date}\n${resource}"
-signature=`echo -en ${_signature} | openssl sha1 -hmac ${s3_secret} -binary | base64`
+signature=$(echo -en "${_signature}" | openssl sha1 -hmac "${S3_SECRET}" -binary | base64)
 
 # Upload to S3 via curl
 curl -X PUT -T "${file}" \
