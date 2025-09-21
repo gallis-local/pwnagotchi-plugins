@@ -57,7 +57,7 @@ main.custom_plugin_repos = [
     "https://github.com/nullm0ose/pwnagotchi-plugin-pisugar3/archive/master.zip",
     "https://github.com/Sniffleupagus/pwnagotchi_plugins/archive/master.zip",
     "https://github.com/NeonLightning/pwny/archive/master.zip",
-    "https://github.com/marbasec/UPSLite_Plugin_1_3/archive/master.zip"
+    "https://github.com/BraedenP232/pwnios/archive/main.zip",
 ]
 ```
 
