@@ -27,31 +27,6 @@ A selection of the most consistent fitting 3D printed cases based on tolerances 
 
 ```
 main.custom_plugin_repos = [
- "https://github.com/itsdarklikehell/pwnagotchi-plugins/archive/refs/heads/master.zip"
-]
-```
-
-## Initial Setup
-
-```
-sudo pwnagotchi plugins update
-sudo pwnagotchi plugins install exp
-sudo pwnagotchi plugins install show_pwd
-sudo pwnagotchi plugins install session-stats_ng
-# PiSugar3 Setup
-sudo pwnagotchi plugins install pisugar3
-sudo pwnagotchi plugins disable sessions-stats
-sudo pwnagotchi plugins enable session-stats_ng
-sudo pwnagotchi plugins enable show_pwd
-sudo pwnagotchi plugins enable exp
-sudo pwnagotchi plugins enable pisugar3
-# Extra Plugins config for config.toml additions
-```
-
-## Original List of Plugins from Image
-
-```
-main.custom_plugin_repos = [
     "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
     "https://github.com/tisboyo/pwnagotchi-pisugar2-plugin/archive/master.zip",
     "https://github.com/nullm0ose/pwnagotchi-plugin-pisugar3/archive/master.zip",
@@ -59,6 +34,14 @@ main.custom_plugin_repos = [
     "https://github.com/NeonLightning/pwny/archive/master.zip",
     "https://github.com/BraedenP232/pwnios/archive/main.zip",
 ]
+```
+
+## Initial Setup
+
+```
+sudo pwnagotchi plugins update
+# Extra Plugins config for config.toml additions
+sudo pwnagotchi plugins install pwnios
 ```
 
 ## Credits

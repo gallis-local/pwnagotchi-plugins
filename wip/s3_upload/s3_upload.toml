@@ -1,6 +1,15 @@
+# Pwnagotchi S3 Handshakes Upload Plugin Configuration
 main.plugins.s3_upload.enabled = false
-main.plugins.s3_upload.region = ""
-main.plugins.s3_upload.endpoint_url = ""
+
+# S3 Configuration
+main.plugins.s3_upload.bucket = "pwnagotchi-handshakes"
+main.plugins.s3_upload.region = "us-east-1"
 main.plugins.s3_upload.access_key = ""
 main.plugins.s3_upload.secret_key = ""
-main.plugins.s3_upload.bucket = "pwnagotchi"
+
+# Optional: Custom S3 endpoint (leave empty for AWS S3)
+main.plugins.s3_upload.endpoint_url = ""
+
+# Upload Settings
+main.plugins.s3_upload.max_retries = 3
+main.plugins.s3_upload.retry_delay = 5
