@@ -10,18 +10,10 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 
 - [itsdarklikehell's awesome list](https://github.com/itsdarklikehell/pwnagotchi-plugins)
 
-## Utility Scripts
-
-* pwnagotchi-scripts - execute on the pwnagotchi via SSH
-* scripts - execute on host machine of USB OTG connection
-
-## 3D Printed Cases
-
-A selection of the most consistent fitting 3D printed cases based on tolerances for both regular and the slimagotchi mod.
-
 ## Custom Plugins
 
-- Clock Custom to side
+- bt-tether - Slightly edited bt-tether for network route metric settings
+- s3_upload - Uploads all handshakes, geojson, potfiles, and hash files to S3 Minio Endpoint on internet connection
 
 ## Current Repo List of Plugins
 
@@ -35,6 +27,14 @@ main.custom_plugin_repos = [
     "https://github.com/BraedenP232/pwnios/archive/main.zip",
 ]
 ```
+
+## Utility Scripts
+
+* scripts - pwngaotchi connection and utility
+
+## 3D Printed Cases
+
+A selection of the most consistent fitting 3D printed cases based on tolerances for both regular and the slimagotchi mod.
 
 ## Initial Setup
 
