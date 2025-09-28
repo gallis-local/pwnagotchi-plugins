@@ -135,23 +135,42 @@ WEB_STATUS_TEMPLATE = """
   .s3-status .download-link {
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
-    color: #1a237e;
+    gap: 0.5rem;
+    color: #ffffff;
     text-decoration: none;
     font-weight: 600;
-    padding: 0.45rem 0.85rem;
-    border-radius: 8px;
-    transition: background 150ms ease, color 150ms ease;
+    font-size: 0.9rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.25);
+    transition: all 200ms ease;
+    border: none;
+    cursor: pointer;
+    min-height: 44px;
+    user-select: none;
   }
 
-  .s3-status .download-link:hover,
+  .s3-status .download-link:hover {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    box-shadow: 0 4px 16px rgba(25, 118, 210, 0.35);
+    transform: translateY(-2px);
+  }
+
   .s3-status .download-link:focus {
-    background: rgba(26, 35, 126, 0.12);
-    color: #0d47a1;
+    outline: 2px solid #2196f3;
+    outline-offset: 2px;
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
   }
 
-  .s3-status .download-link .material-icons {
+  .s3-status .download-link:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.25);
+  }
+
+  .s3-status .download-link span[aria-hidden="true"] {
     font-size: 1.1rem;
+    margin-right: 0.1rem;
   }
 
   .s3-status .table-wrapper {
@@ -227,33 +246,61 @@ WEB_STATUS_TEMPLATE = """
   }
 
   .s3-status .inline-form .action-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     border: none;
-    background: #d32f2f;
-    color: #fff;
+    background: linear-gradient(135deg, #e53935 0%, #d32f2f 100%);
+    color: #ffffff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+    transition: all 200ms ease;
     cursor: pointer;
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.25);
+    user-select: none;
+    position: relative;
+    overflow: hidden;
   }
 
-  .s3-status .inline-form .action-btn .material-icons {
-    font-size: 1.15rem;
+  .s3-status .inline-form .action-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .s3-status .inline-form .action-btn:hover::before {
+    opacity: 1;
+  }
+
+  .s3-status .inline-form .action-btn span[aria-hidden="true"] {
+    font-size: 1.2rem;
+    position: relative;
+    z-index: 1;
+    font-weight: bold;
   }
 
   .s3-status .inline-form .action-btn:hover,
   .s3-status .inline-form .action-btn:focus {
-    background: #b71c1c;
-    box-shadow: 0 4px 12px rgba(183, 28, 28, 0.35);
-    transform: translateY(-1px);
+    background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    box-shadow: 0 4px 16px rgba(229, 57, 53, 0.4);
+    transform: translateY(-2px);
   }
 
-  .s3-status .inline-form .action-btn:focus-visible {
+  .s3-status .inline-form .action-btn:focus {
     outline: 2px solid #ffcdd2;
     outline-offset: 2px;
+  }
+
+  .s3-status .inline-form .action-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.25);
   }
 
   .s3-status th.right-align,
@@ -270,6 +317,33 @@ WEB_STATUS_TEMPLATE = """
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
     border: 0;
+  }
+
+  /* Button and link improvements */
+  .s3-status .btn-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Improved focus management */
+  .s3-status button:focus-visible,
+  .s3-status a:focus-visible {
+    outline: 2px solid #2196f3;
+    outline-offset: 2px;
+  }
+
+  /* Loading state for buttons */
+  .s3-status .action-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .s3-status .action-btn[disabled]:hover {
+    transform: none !important;
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.25) !important;
   }
 
   @media (max-width: 720px) {
@@ -305,6 +379,44 @@ WEB_STATUS_TEMPLATE = """
       max-width: 240px;
       white-space: normal;
       text-overflow: clip;
+    }
+
+    /* Mobile-friendly button adjustments */
+    .s3-status .download-link {
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      min-height: 48px;
+    }
+
+    .s3-status .inline-form .action-btn {
+      width: 48px;
+      height: 48px;
+    }
+
+    .s3-status .btn-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+
+    .s3-status .download-link {
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .s3-status .card-content {
+      padding: 1rem;
+    }
+
+    .s3-status .section-block {
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .s3-status .status-meta {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
     }
   }
 </style>
@@ -361,10 +473,13 @@ WEB_STATUS_TEMPLATE = """
       <div class="section-block">
         <h3 class="section-heading">Status JSON</h3>
         <p class="section-text">Download the latest status snapshot to inspect the raw records.</p>
-        <a href="{{ status_download_url }}" class="download-link" download>
-          <i class="material-icons" aria-hidden="true">download</i>
-          <span>Download status JSON</span>
-        </a>
+        <div class="btn-group">
+          <a href="{{ status_download_url }}" class="download-link" download role="button" aria-describedby="download-description">
+            <span aria-hidden="true">⬇️</span>
+            <span>Download Status JSON</span>
+          </a>
+        </div>
+        <div id="download-description" class="sr-only">Download the complete status data as a JSON file for external analysis</div>
       </div>
     </div>
   </div>
@@ -400,9 +515,13 @@ WEB_STATUS_TEMPLATE = """
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="clear">
                     <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
-                    <button type="submit" class="action-btn waves-effect" title="Clear this record">
-                      <i class="material-icons" aria-hidden="true">delete</i>
-                      <span class="sr-only">Clear this record</span>
+                    <button type="submit" 
+                            class="action-btn" 
+                            title="Clear this upload record" 
+                            aria-label="Clear upload record for {{ record.display_path }}"
+                            onclick="return confirm('Are you sure you want to clear this upload record? This action cannot be undone.');">
+                      <span aria-hidden="true">✕</span>
+                      <span class="sr-only">Clear record for {{ record.display_path }}</span>
                     </button>
                   </form>
                 </td>
