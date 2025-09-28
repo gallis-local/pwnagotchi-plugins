@@ -1,5 +1,7 @@
 # 3d Printed Cases
 
+* Offical List - https://github.com/Pwnagotchi-Unofficial/community-wiki/wiki/STL-cases-and-accessories
+
 * Yet Another Pwnagotchi Case - Slim (https://www.thingiverse.com/thing:6480003/files)
 
 * Yet Another Pwnagotchi Case - Regular (https://www.thingiverse.com/thing:6446341)
