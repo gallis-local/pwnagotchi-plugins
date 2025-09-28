@@ -10,6 +10,7 @@ import pwnagotchi.plugins as plugins
 import pwnagotchi
 import logging
 import datetime
+import json
 import os
 import subprocess
 import time
@@ -38,15 +39,18 @@ class PwnS3Upload(plugins.Plugin):
         self.ready = False
         self.options = dict()
         self._handshakes_dir = '/home/pi/handshakes'  # Default path
+        self._status_path = '/root/.s3_uploads'
         try:
-            self.report = StatusFile('/root/.s3_uploads', data_format='json')
+            self.report = StatusFile(self._status_path, data_format='json')
         except JSONDecodeError:
-            os.remove('/root/.s3_uploads')
-            self.report = StatusFile('/root/.s3_uploads', data_format='json')
+            os.remove(self._status_path)
+            self.report = StatusFile(self._status_path, data_format='json')
         self.lock = Lock()
 
+        self._status_data = self._load_status_data()
+
         # In-memory checksum cache to avoid recomputing hashes repeatedly
-        persisted_cache = self.report.data_field_or('checksum_cache', default={})
+        persisted_cache = self.status_field_or('checksum_cache', default={})
         if isinstance(persisted_cache, dict):
             self._checksum_cache = dict(persisted_cache)
         else:
@@ -54,6 +58,82 @@ class PwnS3Upload(plugins.Plugin):
         
         # Ensure boto3 dependencies are available
         self.ensure_dependencies()
+
+    def _load_status_data(self):
+        """Return the persisted status data stored on disk."""
+        try:
+            with open(self._status_path, 'r', encoding='utf-8') as handle:
+                data = json.load(handle)
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError, TypeError) as exc:
+            self.LogInfo(f"Failed to load status file {self._status_path}: {exc}")
+            return {}
+
+        if isinstance(data, dict):
+            return data
+
+        self.LogInfo(
+            f"Unexpected data format in status file {self._status_path} - resetting cache"
+        )
+        return {}
+
+    def _persist_status_data(self):
+        """Persist the in-memory status data to disk and the StatusFile helper."""
+        tmp_path = f"{self._status_path}.tmp"
+        try:
+            with open(tmp_path, 'w', encoding='utf-8') as handle:
+                json.dump(self._status_data, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            os.replace(tmp_path, self._status_path)
+        except OSError as exc:
+            self.LogInfo(f"Failed to persist status file {self._status_path}: {exc}")
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except OSError:
+                pass
+        else:
+            try:
+                self.report.update(data=self._status_data)
+            except Exception as exc:
+                self.LogDebug(f"Unable to sync StatusFile helper: {exc}")
+
+    def _refresh_status_data_from_disk(self):
+        """Reload the status data from disk when external updates occur."""
+        loaded = self._load_status_data()
+        if loaded != self._status_data:
+            self._status_data = loaded
+
+        checksum_cache = self._status_data.get('checksum_cache')
+        if isinstance(checksum_cache, dict):
+            self._checksum_cache = dict(checksum_cache)
+        else:
+            self._checksum_cache = {}
+
+    def status_field_or(self, field, default=None):
+        """Return a status field value without exposing mutable references."""
+        value = self._status_data.get(field, default)
+        if isinstance(value, dict):
+            return dict(value)
+        if isinstance(value, list):
+            return list(value)
+        return value
+
+    def _update_status_data(self, updates):
+        """Merge updates into the status data and persist the result."""
+        if not isinstance(updates, dict):
+            return
+
+        changed = False
+        for key, value in updates.items():
+            if self._status_data.get(key) != value:
+                self._status_data[key] = value
+                changed = True
+
+        if changed:
+            self._persist_status_data()
+            if 'checksum_cache' in updates and isinstance(updates['checksum_cache'], dict):
+                self._checksum_cache = dict(updates['checksum_cache'])
 
     def ensure_dependencies(self):
         """Ensure required dependencies are installed"""
@@ -221,7 +301,7 @@ class PwnS3Upload(plugins.Plugin):
     # Log Functions - Loaded
     def on_loaded(self):
         self.ready = True
-        uploaded_count = len(self.report.data_field_or('uploaded_files', default=[]))
+        uploaded_count = len(self.status_field_or('uploaded_files', default=[]))
         self.LogInfo(f"Pwnagotchi S3 Handshakes Upload Loaded. {uploaded_count} files previously uploaded.")
         
         # Debug: Check if options are loaded at startup
@@ -335,7 +415,7 @@ class PwnS3Upload(plugins.Plugin):
     
     def get_uploaded_records(self):
         """Return normalized upload records stored in the status file."""
-        raw_records = self.report.data_field_or('uploaded_files', default=[])
+        raw_records = self.status_field_or('uploaded_files', default=[])
 
         normalized_records = []
         for item in raw_records:
@@ -357,7 +437,7 @@ class PwnS3Upload(plugins.Plugin):
 
         # Ensure the status file always stores the normalized representation
         if raw_records != normalized_records:
-            self.report.update(data={
+            self._update_status_data({
                 'uploaded_files': normalized_records,
                 'total_uploaded': len(normalized_records)
             })
@@ -434,7 +514,7 @@ class PwnS3Upload(plugins.Plugin):
         ]
         total_unique = len(set(identifiers))
 
-        self.report.update(data={
+        self._update_status_data({
             'uploaded_files': records,
             'last_upload': timestamp,
             'total_uploaded': total_unique
@@ -452,20 +532,29 @@ class PwnS3Upload(plugins.Plugin):
         if not os.path.exists(handshakes_dir):
             return []
 
-        uploaded_checksums = self.get_uploaded_checksums()
-        uploaded_paths = self.get_uploaded_paths()
+        self._refresh_status_data_from_disk()
+        uploaded_records = self.get_uploaded_records()
+        checksum_to_record = {}
+        path_to_record = {}
+        for record in uploaded_records:
+            record_path = record.get('path') or record.get('filename')
+            if record_path:
+                path_to_record[record_path] = record
+            record_checksum = record.get('checksum')
+            if record_checksum:
+                checksum_to_record[record_checksum] = record
 
         checksum_cache = self._checksum_cache
-        if not checksum_cache:
-            checksum_cache = self.report.data_field_or('checksum_cache', default={})
-            if not isinstance(checksum_cache, dict):
-                checksum_cache = {}
-        else:
+        if checksum_cache:
             checksum_cache = dict(checksum_cache)
+        else:
+            persisted_cache = self.status_field_or('checksum_cache', default={})
+            checksum_cache = persisted_cache if isinstance(persisted_cache, dict) else {}
 
         updated_cache = {}
         pending_files = []
         scanned_file_count = 0
+        records_updated = False
 
         for root, dirs, files in os.walk(handshakes_dir):
             dirs.sort()
@@ -514,11 +603,54 @@ class PwnS3Upload(plugins.Plugin):
                 elif cache_entry:
                     updated_cache[relative_path] = cache_entry
 
-                if checksum and checksum in uploaded_checksums:
+                record_for_checksum = checksum_to_record.get(checksum) if checksum else None
+                record_for_path = path_to_record.get(relative_path)
+
+                if record_for_checksum:
+                    current_timestamp = None
+                    existing_path = record_for_checksum.get('path') or record_for_checksum.get('filename')
+                    if existing_path and existing_path != relative_path:
+                        path_to_record.pop(existing_path, None)
+                        record_for_checksum['path'] = relative_path
+                        record_for_checksum['filename'] = os.path.basename(relative_path)
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    if record_for_checksum.get('size') != size:
+                        record_for_checksum['size'] = size
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    if record_for_checksum.get('mtime_ns') != mtime_ns:
+                        record_for_checksum['mtime_ns'] = mtime_ns
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    path_to_record[relative_path] = record_for_checksum
                     self.LogDebug(f"Skipping {relative_path} - checksum already uploaded")
                     continue
 
-                if not checksum and relative_path in uploaded_paths:
+                if record_for_path and checksum:
+                    record_for_path_checksum = record_for_path.get('checksum')
+                    if record_for_path_checksum == checksum or not record_for_path_checksum:
+                        current_timestamp = self.get_current_datetime()
+                        record_for_path['checksum'] = checksum
+                        record_for_path['size'] = size
+                        record_for_path['mtime_ns'] = mtime_ns
+                        record_for_path['path'] = relative_path
+                        record_for_path['filename'] = os.path.basename(relative_path)
+                        record_for_path['updated_at'] = current_timestamp
+                        checksum_to_record[checksum] = record_for_path
+                        records_updated = True
+                        self.LogDebug(
+                            f"Skipping {relative_path} - associated legacy record refreshed"
+                        )
+                        continue
+
+                if not checksum and record_for_path:
                     self.LogDebug(
                         f"Skipping {relative_path} - path already uploaded (legacy tracking)"
                     )
@@ -533,10 +665,22 @@ class PwnS3Upload(plugins.Plugin):
                 })
 
         if checksum_cache != updated_cache:
-            self.report.update(data={'checksum_cache': updated_cache})
+            self._update_status_data({'checksum_cache': updated_cache})
             self._checksum_cache = updated_cache
         else:
             self._checksum_cache = checksum_cache
+
+        if records_updated:
+            identifiers = [
+                record.get('checksum') or record.get('path') or record.get('filename')
+                for record in uploaded_records
+                if record.get('checksum') or record.get('path') or record.get('filename')
+            ]
+            total_unique = len(set(identifiers))
+            self._update_status_data({
+                'uploaded_files': uploaded_records,
+                'total_uploaded': total_unique
+            })
 
         pending_files.sort(key=lambda item: (item.get('mtime_ns') or 0, item['path']))
         self.LogDebug(
@@ -546,6 +690,7 @@ class PwnS3Upload(plugins.Plugin):
     
     # Get upload statistics for review
     def get_upload_stats(self):
+        self._refresh_status_data_from_disk()
         uploaded_records = self.get_uploaded_records()
         all_files = self.get_handshake_files()
         pending_files = self.collect_pending_uploads()
@@ -562,7 +707,7 @@ class PwnS3Upload(plugins.Plugin):
             'pending_count': len(pending_files),
             'uploaded_files': uploaded_file_names,
             'pending_files': pending_file_names,
-            'last_upload': self.report.data_field_or('last_upload', 'Never')
+            'last_upload': self.status_field_or('last_upload', 'Never')
         }
     
     # Get plugin configuration with defaults
@@ -863,7 +1008,7 @@ class PwnS3Upload(plugins.Plugin):
 
                     # Update status report
                     uploaded_records = self.get_uploaded_records()
-                    self.report.update(data={
+                    self._update_status_data({
                         'last_upload_attempt': self.get_current_datetime(),
                         'last_upload_success': success,
                         'uploaded_files': uploaded_records,
