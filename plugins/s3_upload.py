@@ -12,8 +12,8 @@ import logging
 import datetime
 import os
 import subprocess
-import tempfile
 import time
+import hashlib
 from threading import Lock
 from pwnagotchi.utils import StatusFile
 from json import JSONDecodeError
@@ -44,6 +44,13 @@ class PwnS3Upload(plugins.Plugin):
             os.remove('/root/.s3_uploads')
             self.report = StatusFile('/root/.s3_uploads', data_format='json')
         self.lock = Lock()
+
+        # In-memory checksum cache to avoid recomputing hashes repeatedly
+        persisted_cache = self.report.data_field_or('checksum_cache', default={})
+        if isinstance(persisted_cache, dict):
+            self._checksum_cache = dict(persisted_cache)
+        else:
+            self._checksum_cache = {}
         
         # Ensure boto3 dependencies are available
         self.ensure_dependencies()
@@ -278,60 +285,283 @@ class PwnS3Upload(plugins.Plugin):
         return datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
     # Get list of handshake files
+    def normalize_relative_path(self, handshakes_dir, file_path):
+        """Return a normalized POSIX-style relative path for tracking."""
+        relative_path = os.path.relpath(file_path, handshakes_dir)
+        return relative_path.replace(os.sep, '/')
+
+    def should_consider_file(self, relative_path):
+        """Return True when a file should be considered for upload."""
+        lower_name = relative_path.lower()
+        basename = os.path.basename(lower_name)
+
+        # Always include geo.json derivatives and hash/potfile exports
+        if basename in {'geo.json'} or lower_name.endswith('.geo.json'):
+            return True
+
+        monitored_suffixes = (
+            '.pcap', '.pcapng', '.cap', '.hccap', '.hccapx', '.pcap.gz', '.pcapng.gz',
+            '.cap.gz', '.16800', '.22000', '.potfile', '.pot', '.hash', '.hc22000', '.hc16800'
+        )
+        if any(lower_name.endswith(suffix) for suffix in monitored_suffixes):
+            return True
+
+        # Skip obvious temporary/editor files but include everything else for compatibility
+        ignored_suffixes = ('.tmp', '.swp', '.lock', '.part')
+        if basename.startswith('.') or lower_name.endswith(ignored_suffixes):
+            return False
+
+        return True
+
     def get_handshake_files(self):
         handshakes_dir = self.get_handshakes_dir()
         if not os.path.exists(handshakes_dir):
             return []
-        
+
         handshake_files = []
-        for file in os.listdir(handshakes_dir):
-            filepath = os.path.join(handshakes_dir, file)
-            if os.path.isfile(filepath):
-                handshake_files.append(file)
+        for root, dirs, files in os.walk(handshakes_dir):
+            dirs.sort()
+            files.sort()
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                if not os.path.isfile(file_path):
+                    continue
+
+                relative_path = self.normalize_relative_path(handshakes_dir, file_path)
+                if self.should_consider_file(relative_path):
+                    handshake_files.append(relative_path)
+
         return handshake_files
     
-    # Track uploaded files by filename
-    def track_uploaded_files(self, filenames):
-        uploaded_files = self.report.data_field_or('uploaded_files', default=[])
+    def get_uploaded_records(self):
+        """Return normalized upload records stored in the status file."""
+        raw_records = self.report.data_field_or('uploaded_files', default=[])
+
+        normalized_records = []
+        for item in raw_records:
+            if isinstance(item, dict):
+                record = dict(item)
+            elif isinstance(item, str):
+                # Backwards compatibility with filename-only tracking
+                record = {'filename': item}
+            else:
+                continue
+
+            if 'path' not in record:
+                if record.get('filename'):
+                    record['path'] = record['filename']
+                elif record.get('relative_path'):
+                    record['path'] = record['relative_path']
+
+            normalized_records.append(record)
+
+        # Ensure the status file always stores the normalized representation
+        if raw_records != normalized_records:
+            self.report.update(data={
+                'uploaded_files': normalized_records,
+                'total_uploaded': len(normalized_records)
+            })
+
+        return normalized_records
+
+    def get_uploaded_checksums(self):
+        """Return a set of previously uploaded file checksums."""
+        return {
+            record['checksum']
+            for record in self.get_uploaded_records()
+            if record.get('checksum')
+        }
+
+    def get_uploaded_paths(self):
+        """Return a set of previously uploaded relative paths (legacy support friendly)."""
+        return {
+            record.get('path') or record.get('filename')
+            for record in self.get_uploaded_records()
+            if record.get('path') or record.get('filename')
+        }
+
+    def get_file_checksum(self, file_path):
+        """Calculate the SHA256 checksum for a file."""
+        sha256 = hashlib.sha256()
+        try:
+            with open(file_path, 'rb') as file_handle:
+                for chunk in iter(lambda: file_handle.read(65536), b''):
+                    sha256.update(chunk)
+        except (OSError, IOError) as exc:
+            self.LogInfo(f"Failed to compute checksum for {file_path}: {exc}")
+            return None
+        return sha256.hexdigest()
+
+    def track_uploaded_file(self, relative_path, checksum):
+        """Record a successfully uploaded file using its checksum."""
+        if not relative_path and not checksum:
+            return
+
         timestamp = self.get_current_datetime()
-        
-        for filename in filenames:
-            if filename not in uploaded_files:
-                uploaded_files.append(filename)
-                
+        records = self.get_uploaded_records()
+
+        updated = False
+        if checksum:
+            for record in records:
+                if record.get('checksum') == checksum:
+                    # Update path if it changed, retain original timestamp
+                    if relative_path and record.get('path') != relative_path:
+                        record['path'] = relative_path
+                        record['filename'] = os.path.basename(relative_path)
+                        record['updated_at'] = timestamp
+                    updated = True
+                    break
+        else:
+            # Fall back to path-based tracking when checksum is unavailable
+            for record in records:
+                existing_path = record.get('path') or record.get('filename')
+                if existing_path == relative_path:
+                    updated = True
+                    break
+
+        if not updated:
+            records.append({
+                'path': relative_path,
+                'filename': os.path.basename(relative_path),
+                'checksum': checksum,
+                'uploaded_at': timestamp
+            })
+
+        identifiers = [
+            record.get('checksum') or record.get('path') or record.get('filename')
+            for record in records
+            if record.get('checksum') or record.get('path') or record.get('filename')
+        ]
+        total_unique = len(set(identifiers))
+
         self.report.update(data={
-            'uploaded_files': uploaded_files,
+            'uploaded_files': records,
             'last_upload': timestamp,
-            'total_uploaded': len(uploaded_files)
+            'total_uploaded': total_unique
         })
-        self.LogInfo(f"Tracked {len(filenames)} uploaded files. Total: {len(uploaded_files)}")
-    
-    # Check if file was already uploaded
-    def is_file_uploaded(self, filename):
-        uploaded_files = self.report.data_field_or('uploaded_files', default=[])
-        return filename in uploaded_files
-    
+        self.LogInfo(
+            f"Recorded upload for {relative_path} "
+            f"({'checksum ' + checksum if checksum else 'no checksum'})"
+        )
+
     # Get list of files that need to be uploaded
-    def get_files_to_upload(self):
-        all_files = self.get_handshake_files()
-        uploaded_files = self.report.data_field_or('uploaded_files', default=[])
-        
-        files_to_upload = [f for f in all_files if f not in uploaded_files]
-        self.LogDebug(f"Found {len(files_to_upload)} new files to upload out of {len(all_files)} total files")
-        return files_to_upload
+    def collect_pending_uploads(self):
+        """Scan the handshake directory and build a chronologically ordered upload queue."""
+
+        handshakes_dir = self.get_handshakes_dir()
+        if not os.path.exists(handshakes_dir):
+            return []
+
+        uploaded_checksums = self.get_uploaded_checksums()
+        uploaded_paths = self.get_uploaded_paths()
+
+        checksum_cache = self._checksum_cache
+        if not checksum_cache:
+            checksum_cache = self.report.data_field_or('checksum_cache', default={})
+            if not isinstance(checksum_cache, dict):
+                checksum_cache = {}
+        else:
+            checksum_cache = dict(checksum_cache)
+
+        updated_cache = {}
+        pending_files = []
+        scanned_file_count = 0
+
+        for root, dirs, files in os.walk(handshakes_dir):
+            dirs.sort()
+            files.sort()
+
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                if not os.path.isfile(file_path):
+                    continue
+
+                relative_path = self.normalize_relative_path(handshakes_dir, file_path)
+                if not self.should_consider_file(relative_path):
+                    continue
+
+                scanned_file_count += 1
+
+                try:
+                    stat_result = os.stat(file_path)
+                    size = stat_result.st_size
+                    mtime_ns = getattr(stat_result, 'st_mtime_ns', None)
+                    if mtime_ns is None:
+                        mtime_ns = int(stat_result.st_mtime * 1_000_000_000)
+                except OSError as exc:
+                    self.LogInfo(f"Failed to stat {file_path}: {exc}")
+                    continue
+
+                cache_entry = checksum_cache.get(relative_path)
+                checksum = None
+                metadata_matches = (
+                    cache_entry
+                    and cache_entry.get('size') == size
+                    and cache_entry.get('mtime_ns') == mtime_ns
+                )
+
+                if metadata_matches and cache_entry.get('checksum'):
+                    checksum = cache_entry.get('checksum')
+                else:
+                    checksum = self.get_file_checksum(file_path)
+
+                if checksum:
+                    updated_cache[relative_path] = {
+                        'checksum': checksum,
+                        'size': size,
+                        'mtime_ns': mtime_ns
+                    }
+                elif cache_entry:
+                    updated_cache[relative_path] = cache_entry
+
+                if checksum and checksum in uploaded_checksums:
+                    self.LogDebug(f"Skipping {relative_path} - checksum already uploaded")
+                    continue
+
+                if not checksum and relative_path in uploaded_paths:
+                    self.LogDebug(
+                        f"Skipping {relative_path} - path already uploaded (legacy tracking)"
+                    )
+                    continue
+
+                pending_files.append({
+                    'path': relative_path,
+                    'local_path': file_path,
+                    'checksum': checksum,
+                    'size': size,
+                    'mtime_ns': mtime_ns
+                })
+
+        if checksum_cache != updated_cache:
+            self.report.update(data={'checksum_cache': updated_cache})
+            self._checksum_cache = updated_cache
+        else:
+            self._checksum_cache = checksum_cache
+
+        pending_files.sort(key=lambda item: (item.get('mtime_ns') or 0, item['path']))
+        self.LogDebug(
+            f"Queued {len(pending_files)} pending uploads from {scanned_file_count} eligible handshake files"
+        )
+        return pending_files
     
     # Get upload statistics for review
     def get_upload_stats(self):
-        uploaded_files = self.report.data_field_or('uploaded_files', default=[])
+        uploaded_records = self.get_uploaded_records()
         all_files = self.get_handshake_files()
-        pending_files = self.get_files_to_upload()
-        
+        pending_files = self.collect_pending_uploads()
+
+        uploaded_file_names = [
+            record.get('path') or record.get('filename') or record.get('checksum')
+            for record in uploaded_records
+        ]
+        pending_file_names = [item['path'] for item in pending_files]
+
         return {
             'total_handshakes': len(all_files),
-            'uploaded_count': len(uploaded_files),
+            'uploaded_count': len(uploaded_records),
             'pending_count': len(pending_files),
-            'uploaded_files': uploaded_files,
-            'pending_files': pending_files,
+            'uploaded_files': uploaded_file_names,
+            'pending_files': pending_file_names,
             'last_upload': self.report.data_field_or('last_upload', 'Never')
         }
     
@@ -368,33 +598,31 @@ class PwnS3Upload(plugins.Plugin):
         return hostname if hostname else 'pwnagotchi'
 
     # Get files ready for upload (individual files instead of archive)
-    def get_files_for_upload(self):
+    def get_files_for_upload(self, pending_files=None):
         handshakes_dir = self.get_handshakes_dir()
         if not os.path.exists(handshakes_dir):
             self.LogDebug("Handshakes directory does not exist")
             return []
-            
-        # Get files to upload
-        files_to_upload = self.get_files_to_upload()
-        if not files_to_upload:
+
+        if pending_files is None:
+            pending_files = self.collect_pending_uploads()
+
+        if not pending_files:
             self.LogDebug("No new handshake files to upload")
             return []
-        
+
         # Get hostname for S3 organization
         hostname = self.get_hostname()
         self.LogDebug(f"Using hostname for S3 organization: {hostname}")
-        
+
         # Return full file paths for upload
         file_paths = []
-        for filename in files_to_upload:
-            file_path = os.path.join(handshakes_dir, filename)
-            if os.path.isfile(file_path):
-                file_paths.append({
-                    'local_path': file_path,
-                    'filename': filename,
-                    's3_key': f"{hostname}/{filename}"  # Upload directly under hostname
-                })
-        
+        for file_info in pending_files:
+            file_entry = file_info.copy()
+            s3_relative_key = file_entry['path'].replace(os.sep, '/')
+            file_entry['s3_key'] = f"{hostname}/{s3_relative_key}"
+            file_paths.append(file_entry)
+
         self.LogInfo(f"Found {len(file_paths)} handshake files ready for upload to s3://bucket/{hostname}/")
         return file_paths
 
@@ -575,8 +803,7 @@ class PwnS3Upload(plugins.Plugin):
         return False
     
     # Main upload method for handshakes
-    def upload_handshakes_to_s3(self):
-        files_for_upload = self.get_files_for_upload()
+    def upload_handshakes_to_s3(self, files_for_upload):
         if not files_for_upload:
             self.LogDebug("No files ready for upload - skipping")
             return False
@@ -588,36 +815,31 @@ class PwnS3Upload(plugins.Plugin):
         
         for file_info in files_for_upload:
             local_path = file_info['local_path']
-            filename = file_info['filename']
+            relative_path = file_info['path']
             s3_key = file_info['s3_key']
-            
-            self.LogDebug(f"Uploading file: {filename}")
-            
+            checksum = file_info.get('checksum')
+
+            self.LogDebug(f"Uploading file: {relative_path}")
+
             success = self.upload_file_to_s3(local_path, s3_key)
-            
+
             if success:
-                uploaded_files.append(filename)
-                self.LogInfo(f"Successfully uploaded: {filename}")
+                uploaded_files.append(relative_path)
+                self.track_uploaded_file(relative_path, checksum)
+                self.LogInfo(f"Successfully uploaded: {relative_path}")
             else:
-                failed_files.append(filename)
-                self.LogInfo(f"Failed to upload: {filename}")
-        
-        # Track successful uploads
+                failed_files.append(relative_path)
+                self.LogInfo(f"Failed to upload: {relative_path}")
+
         if uploaded_files:
-            self.track_uploaded_files(uploaded_files)
             self.LogInfo(f"Upload summary: {len(uploaded_files)} successful, {len(failed_files)} failed")
-        
+
         if failed_files:
             self.LogInfo(f"Failed uploads: {', '.join(failed_files)}")
-        
+
         # Return True if at least one file was uploaded successfully
         return len(uploaded_files) > 0
 
-    # Check if there are new handshake files to upload
-    def has_new_handshakes(self):
-        files_to_upload = self.get_files_to_upload()
-        return len(files_to_upload) > 0
-    
     # Upload to S3 when internet is available and there are new handshakes
     def on_internet_available(self, agent):
         if not self.ready or self.lock.locked():
@@ -633,19 +855,19 @@ class PwnS3Upload(plugins.Plugin):
             self.LogDebug("Internet is available, checking for new handshakes")
             
             try:
-                # Check if there are new handshakes to upload
-                if self.has_new_handshakes():
-                    files_to_upload = self.get_files_to_upload()
-                    self.LogDebug(f"New handshakes detected - uploading {len(files_to_upload)} files to S3")
-                    success = self.upload_handshakes_to_s3()
-                    
+                pending_files = self.collect_pending_uploads()
+                if pending_files:
+                    upload_queue = self.get_files_for_upload(pending_files)
+                    self.LogDebug(f"New handshakes detected - uploading {len(upload_queue)} files to S3")
+                    success = self.upload_handshakes_to_s3(upload_queue)
+
                     # Update status report
-                    uploaded_files = self.report.data_field_or('uploaded_files', default=[])
+                    uploaded_records = self.get_uploaded_records()
                     self.report.update(data={
                         'last_upload_attempt': self.get_current_datetime(),
                         'last_upload_success': success,
-                        'uploaded_files': uploaded_files,
-                        'total_uploaded': len(uploaded_files)
+                        'uploaded_files': uploaded_records,
+                        'total_uploaded': len(uploaded_records)
                     })
                     
                     if success:
