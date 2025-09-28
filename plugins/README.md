@@ -2,6 +2,11 @@
 
 ## bt-tether
 
+[Source as of (v2.9.5.3)](https://github.com/jayofelony/pwnagotchi/issues/405#issuecomment-2961326871)
+
+[Pull Request](https://github.com/jayofelony/pwnagotchi/pull/407)
+
+
 ✅ Fix: Create the Bluetooth PAN profile first
 
 You need to add a connection profile before you can modify it.

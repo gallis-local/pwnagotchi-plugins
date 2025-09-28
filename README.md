@@ -6,47 +6,72 @@ RPIZERO2W Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 
 RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum-ice/pwnagotchi/releases)
 
-## Master Plugin List
-
-- [itsdarklikehell's awesome list](https://github.com/itsdarklikehell/pwnagotchi-plugins)
-
 ## Custom Plugins
 
 - bt-tether - Slightly edited bt-tether for network route metric settings
 - s3_upload - Uploads all handshakes, geojson, potfiles, and hash files to S3 Minio Endpoint on internet connection
 
+## 🚀 Easy Installation
+
+This repository provides automated plugin bundles compatible with Pwnagotchi's plugin system. **[📖 See Full Installation Guide](PLUGIN_INSTALLATION.md)**
+
+### Quick Setup
+
+Add to your `/etc/pwnagotchi/config.toml`:
+
+```toml
+main.custom_plugin_repos = [
+    "https://github.com/gallis-local/pwnagotchi-plugins/releases/latest/download/pwnagotchi-plugins-bundle.zip"
+]
+```
+
+**Release Channels:**
+- 🚀 **Main**: Production-ready (use `latest` in URL above)
+- 🧪 **RC**: Release candidates for testing ([check releases](https://github.com/gallis-local/pwnagotchi-plugins/releases) for RC versions)
+
+Then run:
+```bash
+sudo pwnagotchi plugins update
+sudo pwnagotchi plugins install s3_upload
+```
+
 ## Companion Apps
 
 - [pwnios](https://github.com/BraedenP232/pwnios)
 
-## Current Repo List of Plugins
+## 🔄 Automated Release System
 
-```
+This repository uses GitHub Actions to automatically package plugins into Pwnagotchi-compatible bundles:
+
+- **Automated ZIP Creation**: Plugin files are automatically bundled on each release
+- **Metadata Extraction**: Plugin information (version, author, description) is automatically parsed
+- **Multiple Formats**: Both full bundles and simple ZIP files are generated
+- **Release URLs**: Direct URLs for `custom_plugin_repos` configuration
+- **Validation**: ZIP files are tested for proper structure
+
+### Other Plugin Repositories
+
+```toml
 main.custom_plugin_repos = [
- "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
- "https://github.com/Sniffleupagus/pwnagotchi_plugins/archive/master.zip",
- "https://github.com/NeonLightning/pwny/archive/master.zip",
- "https://github.com/marbasec/UPSLite_Plugin_1_3/archive/master.zip",
- "https://github.com/wpa-2/Pwnagotchi-Plugins/archive/master.zip",
- "https://github.com/BraedenP232/pwnios/archive/main.zip",
+    "https://github.com/gallis-local/pwnagotchi-plugins/releases/latest/download/pwnagotchi-plugins-bundle.zip",
+    "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
+    "https://github.com/Sniffleupagus/pwnagotchi_plugins/archive/master.zip",
+    "https://github.com/NeonLightning/pwny/archive/master.zip",
+    "https://github.com/marbasec/UPSLite_Plugin_1_3/archive/master.zip",
+    "https://github.com/wpa-2/Pwnagotchi-Plugins/archive/master.zip",
+    "https://github.com/BraedenP232/pwnios/archive/main.zip"
 ]
 ```
 
-## Utility Scripts
+## Extra
+
+### Utility Scripts
 
 * scripts - pwngaotchi connection and utility
 
-## 3D Printed Cases
+### 3D Printed Cases
 
 A selection of the most consistent fitting 3D printed cases based on tolerances for both regular and the slimagotchi mod.
-
-## Initial Setup
-
-```
-sudo pwnagotchi plugins update
-# Extra Plugins config for config.toml additions
-sudo pwnagotchi plugins install pwnios
-```
 
 ## Credits
 
