@@ -44,53 +44,106 @@ WEB_STATUS_TEMPLATE = """
 {% block styles %}
 {{ super() }}
 <style>
+  .s3-status .card {
+    margin-bottom: 2rem;
+  }
+
   .s3-status .status-meta {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
     gap: 1rem;
   }
 
   .s3-status .status-chip {
-    background: rgba(236, 239, 241, 0.6);
-    border-radius: 8px;
-    padding: 0.75rem 1rem;
-    line-height: 1.4;
+    background: rgba(236, 239, 241, 0.8);
+    border-radius: 10px;
+    padding: 0.9rem 1.1rem;
+    line-height: 1.45;
+    box-shadow: inset 0 0 0 1px rgba(120, 144, 156, 0.1);
   }
 
   .s3-status .status-chip .label {
     text-transform: uppercase;
-    font-size: 0.75rem;
-    letter-spacing: 0.08em;
+    font-size: 0.7rem;
+    letter-spacing: 0.1em;
     color: #607d8b;
     display: block;
-    margin-bottom: 0.35rem;
+    margin-bottom: 0.4rem;
   }
 
   .s3-status .status-chip .value {
     font-weight: 600;
+    font-size: 1rem;
     word-break: break-word;
+    color: #263238;
+  }
+
+  .s3-status .card-title {
+    margin-bottom: 1rem;
+  }
+
+  .s3-status .card-action {
+    display: flex;
+    justify-content: flex-end;
   }
 
   .s3-status .table-wrapper {
+    margin-top: 1rem;
     overflow-x: auto;
+    border-radius: 10px;
+    border: 1px solid rgba(176, 190, 197, 0.4);
   }
 
   .s3-status table {
-    min-width: 680px;
+    margin-bottom: 0;
+    width: 100%;
+    min-width: 600px;
   }
 
-  .s3-status td code {
+  .s3-status table thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.75rem;
+    color: #607d8b;
+  }
+
+  .s3-status table td,
+  .s3-status table th {
+    padding: 0.9rem 1.1rem;
+  }
+
+  .s3-status td code,
+  .s3-status td .mono {
     word-break: break-all;
+    font-family: "Roboto Mono", "Source Code Pro", monospace;
+    font-size: 0.85rem;
   }
 
   .s3-status .truncate {
-    display: inline-block;
+    display: inline-flex;
+    align-items: center;
     max-width: 100%;
+  }
+
+  .s3-status .table-wrapper .table-footer {
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+    color: #546e7a;
+  }
+
+  .s3-status .inline-form {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .s3-status .inline-form button {
+    padding: 0 0.75rem;
   }
 
   @media (max-width: 720px) {
     .s3-status .table-wrapper {
-      overflow-x: visible;
+      overflow: visible;
     }
 
     .s3-status table,
@@ -117,14 +170,14 @@ WEB_STATUS_TEMPLATE = """
       border: none;
       position: relative;
       padding-left: 45%;
-      min-height: 2rem;
+      min-height: 2.5rem;
     }
 
     .s3-status td::before {
       content: attr(data-label);
       position: absolute;
-      left: 0.75rem;
-      width: 40%;
+      left: 0.9rem;
+      width: 42%;
       font-weight: 600;
       color: #546e7a;
       text-transform: uppercase;
@@ -140,8 +193,12 @@ WEB_STATUS_TEMPLATE = """
       display: none;
     }
 
-    .s3-status form {
-      text-align: right;
+    .s3-status .inline-form {
+      justify-content: flex-end;
+    }
+
+    .s3-status .inline-form button {
+      padding: 0 0.5rem;
     }
   }
 </style>
@@ -203,7 +260,7 @@ WEB_STATUS_TEMPLATE = """
       <span class="card-title">Tracked Uploads</span>
       {% if uploaded_records %}
       <div class="table-wrapper">
-        <table class="striped highlight">
+        <table class="responsive-table striped highlight">
           <thead>
             <tr>
               <th scope="col">File</th>
@@ -217,7 +274,7 @@ WEB_STATUS_TEMPLATE = """
           <tbody>
             {% for record in uploaded_records %}
             <tr>
-              <td data-label="File"><span class="truncate">{{ record.display_path }}</span></td>
+              <td data-label="File"><span class="truncate mono">{{ record.display_path }}</span></td>
               <td data-label="Checksum"><code>{{ record.display_checksum }}</code></td>
               <td data-label="Size">{{ record.display_size }}</td>
               <td data-label="Uploaded">{{ record.uploaded_at }}</td>
@@ -227,7 +284,8 @@ WEB_STATUS_TEMPLATE = """
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="action" value="clear">
                   <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
-                  <button type="submit" class="btn-flat waves-effect red-text text-accent-4" title="Remove this record">
+                  <button type="submit" class="btn-flat waves-effect waves-red red-text text-darken-2" title="Remove this record">
+                    <i class="material-icons left" aria-hidden="true">backspace</i>
                     Clear
                   </button>
                 </form>
