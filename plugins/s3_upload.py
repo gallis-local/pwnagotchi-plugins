@@ -10,6 +10,7 @@ import pwnagotchi.plugins as plugins
 import pwnagotchi
 import logging
 import datetime
+import json
 import os
 import subprocess
 import time
@@ -17,6 +18,13 @@ import hashlib
 from threading import Lock
 from pwnagotchi.utils import StatusFile
 from json import JSONDecodeError
+from flask import abort, render_template_string, Response, url_for
+
+try:
+    from flask_wtf.csrf import generate_csrf
+except ImportError:  # pragma: no cover - fallback when csrf extension unavailable
+    def generate_csrf():
+        return ''
 
 # Try to import boto3, install if not available
 try:
@@ -28,6 +36,513 @@ except ImportError:
 
 TAG = "[S3 Plugin]"
 
+WEB_STATUS_TEMPLATE = """
+{% extends "base.html" %}
+{% set active_page = "plugins" %}
+{% block title %}S3 Upload Status{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+  .s3-status {
+    --s3-surface: #ffffff;
+    --s3-border: rgba(176, 190, 197, 0.55);
+    --s3-muted: #455a64;
+    --s3-heading: #263238;
+    --s3-chip: rgba(236, 239, 241, 0.55);
+    --s3-chip-border: rgba(120, 144, 156, 0.22);
+  }
+
+  .s3-status .card {
+    margin-bottom: 2rem;
+    border-radius: 18px;
+    border: 1px solid var(--s3-border);
+    box-shadow: 0 14px 28px rgba(38, 50, 56, 0.08);
+    background: var(--s3-surface);
+  }
+
+  .s3-status .card-content {
+    padding: 2rem;
+  }
+
+  .s3-status .card-title {
+    margin: 0 0 1.5rem;
+    font-weight: 600;
+    color: var(--s3-heading);
+    font-size: 1.55rem;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+  }
+
+  .s3-status .section-block {
+    border-radius: 14px;
+    border: 1px solid var(--s3-border);
+    background: rgba(236, 239, 241, 0.4);
+    padding: 1.35rem 1.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .s3-status .section-block:first-of-type {
+    margin-top: 0;
+  }
+
+  .s3-status .section-heading {
+    margin: 0 0 0.85rem;
+    font-size: 0.92rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--s3-muted);
+  }
+
+  .s3-status .section-text {
+    margin: 0 0 1rem;
+    color: #37474f;
+    font-size: 0.95rem;
+    line-height: 1.5;
+  }
+
+  .s3-status .status-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+
+  .s3-status .status-chip {
+    background: var(--s3-chip);
+    border-radius: 12px;
+    padding: 0.9rem 1.1rem;
+    line-height: 1.45;
+    box-shadow: inset 0 0 0 1px var(--s3-chip-border);
+  }
+
+  .s3-status .status-chip .label {
+    text-transform: uppercase;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    color: #546e7a;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  .s3-status .status-chip .value {
+    font-weight: 600;
+    font-size: 0.95rem;
+    word-break: break-word;
+    color: var(--s3-heading);
+  }
+
+  .s3-status .download-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #ffffff;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.25);
+    transition: all 200ms ease;
+    border: none;
+    cursor: pointer;
+    min-height: 44px;
+    user-select: none;
+  }
+
+  .s3-status .download-link:hover {
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+    box-shadow: 0 4px 16px rgba(25, 118, 210, 0.35);
+    transform: translateY(-2px);
+  }
+
+  .s3-status .download-link:focus {
+    outline: 2px solid #2196f3;
+    outline-offset: 2px;
+    background: linear-gradient(135deg, #1565c0 0%, #0d47a1 100%);
+  }
+
+  .s3-status .download-link:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(25, 118, 210, 0.25);
+  }
+
+  .s3-status .download-link span[aria-hidden="true"] {
+    font-size: 1.1rem;
+    margin-right: 0.1rem;
+  }
+
+  .s3-status .table-wrapper {
+    margin-top: 0.5rem;
+    overflow-x: auto;
+    border-radius: 12px;
+    border: 1px solid rgba(176, 190, 197, 0.6);
+    background: #fff;
+  }
+
+  .s3-status table {
+    margin-bottom: 0;
+    width: 100%;
+    min-width: 640px;
+    border-collapse: collapse;
+  }
+
+  .s3-status table thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 0.72rem;
+    color: var(--s3-muted);
+    background-color: rgba(236, 239, 241, 0.8);
+    border-bottom: 1px solid rgba(120, 144, 156, 0.3);
+  }
+
+  .s3-status table td,
+  .s3-status table th {
+    padding: 0.85rem 1rem;
+  }
+
+  .s3-status table tbody tr:nth-child(even) {
+    background-color: rgba(236, 239, 241, 0.35);
+  }
+
+  .s3-status table tbody tr:hover {
+    background-color: rgba(207, 216, 220, 0.35);
+  }
+
+  .s3-status table tbody td {
+    font-size: 0.9rem;
+    color: #37474f;
+  }
+
+  .s3-status td code,
+  .s3-status td .mono {
+    word-break: break-all;
+    font-family: "Roboto Mono", "Source Code Pro", monospace;
+    font-size: 0.85rem;
+    color: var(--s3-heading);
+  }
+
+  .s3-status .mono {
+    font-family: "Roboto Mono", "Source Code Pro", monospace;
+  }
+
+  .s3-status td code {
+    background-color: rgba(207, 216, 220, 0.35);
+    padding: 0.2rem 0.35rem;
+    border-radius: 4px;
+    display: inline-block;
+  }
+
+  .s3-status .truncate {
+    display: inline-flex;
+    align-items: center;
+    max-width: 100%;
+  }
+
+  .s3-status .inline-form {
+    display: inline-flex;
+    align-items: center;
+  }
+
+  .s3-status .inline-form .action-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    border: none;
+    background: linear-gradient(135deg, #e53935 0%, #d32f2f 100%);
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 200ms ease;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.25);
+    user-select: none;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .s3-status .inline-form .action-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.1);
+    opacity: 0;
+    transition: opacity 200ms ease;
+  }
+
+  .s3-status .inline-form .action-btn:hover::before {
+    opacity: 1;
+  }
+
+  .s3-status .inline-form .action-btn span[aria-hidden="true"] {
+    font-size: 1.2rem;
+    position: relative;
+    z-index: 1;
+    font-weight: bold;
+  }
+
+  .s3-status .inline-form .action-btn:hover,
+  .s3-status .inline-form .action-btn:focus {
+    background: linear-gradient(135deg, #d32f2f 0%, #b71c1c 100%);
+    box-shadow: 0 4px 16px rgba(229, 57, 53, 0.4);
+    transform: translateY(-2px);
+  }
+
+  .s3-status .inline-form .action-btn:focus {
+    outline: 2px solid #ffcdd2;
+    outline-offset: 2px;
+  }
+
+  .s3-status .inline-form .action-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.25);
+  }
+
+  .s3-status th.right-align,
+  .s3-status td.right-align {
+    text-align: right;
+  }
+
+  .s3-status .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    border: 0;
+  }
+
+  /* Button and link improvements */
+  .s3-status .btn-group {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  /* Improved focus management */
+  .s3-status button:focus-visible,
+  .s3-status a:focus-visible {
+    outline: 2px solid #2196f3;
+    outline-offset: 2px;
+  }
+
+  /* Loading state for buttons */
+  .s3-status .action-btn[disabled] {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .s3-status .action-btn[disabled]:hover {
+    transform: none !important;
+    box-shadow: 0 2px 8px rgba(229, 57, 53, 0.25) !important;
+  }
+
+  @media (max-width: 720px) {
+    .s3-status .card-content {
+      padding: 1.5rem;
+    }
+
+    .s3-status .status-meta {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
+    .s3-status .section-block {
+      padding: 1.1rem 1.2rem;
+    }
+
+    .s3-status .table-wrapper {
+      margin: 0 -1rem;
+      padding: 0 1rem;
+      overflow-x: auto;
+    }
+
+    .s3-status table {
+      min-width: 520px;
+    }
+
+    .s3-status table td,
+    .s3-status table th {
+      padding: 0.75rem 0.85rem;
+      word-break: break-word;
+    }
+
+    .s3-status table td .truncate {
+      max-width: 240px;
+      white-space: normal;
+      text-overflow: clip;
+    }
+
+    /* Mobile-friendly button adjustments */
+    .s3-status .download-link {
+      padding: 0.85rem 1rem;
+      font-size: 0.85rem;
+      min-height: 48px;
+    }
+
+    .s3-status .inline-form .action-btn {
+      width: 48px;
+      height: 48px;
+    }
+
+    .s3-status .btn-group {
+      flex-direction: column;
+      align-items: stretch;
+      gap: 0.5rem;
+    }
+
+    .s3-status .download-link {
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .s3-status .card-content {
+      padding: 1rem;
+    }
+
+    .s3-status .section-block {
+      padding: 1rem;
+      margin-top: 1rem;
+    }
+
+    .s3-status .status-meta {
+      grid-template-columns: 1fr;
+      gap: 0.75rem;
+    }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="s3-status">
+  {% if feedback %}
+  <div class="card-panel {{ 'green lighten-5' if feedback.category == 'success' else 'red lighten-5' }}">
+    <span class="{{ 'green-text text-darken-4' if feedback.category == 'success' else 'red-text text-darken-4' }}">{{ feedback.message }}</span>
+  </div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-content">
+      <h2 class="card-title">Status Overview</h2>
+      <div class="section-block">
+        <h3 class="section-heading">Summary</h3>
+        <div class="status-meta">
+          <div class="status-chip">
+            <span class="label">Status file</span>
+            <span class="value mono">{{ status_path }}</span>
+          </div>
+          <div class="status-chip">
+            <span class="label">Exists</span>
+            <span class="value">{{ 'Yes' if status_exists else 'No' }}</span>
+          </div>
+          <div class="status-chip">
+            <span class="label">Last updated</span>
+            <span class="value">{{ status_mtime or 'Never' }}</span>
+          </div>
+          <div class="status-chip">
+            <span class="label">Total uploaded (unique)</span>
+            <span class="value">{{ status_summary.total_uploaded }}</span>
+          </div>
+          <div class="status-chip">
+            <span class="label">Last upload</span>
+            <span class="value">{{ status_summary.last_upload }}</span>
+          </div>
+          <div class="status-chip">
+            <span class="label">Total handshakes found</span>
+            <span class="value">{{ status_summary.total_handshakes }}</span>
+          </div>
+          <div class="status-chip">
+            <span class="label">Pending uploads</span>
+            <span class="value">{{ status_summary.pending_count }}</span>
+          </div>
+          <div class="status-chip">
+            <span class="label">Tracked records</span>
+            <span class="value">{{ uploaded_records|length }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="section-block">
+        <h3 class="section-heading">Status JSON</h3>
+        <p class="section-text">Download the latest status snapshot to inspect the raw records.</p>
+        <div class="btn-group">
+          <a href="{{ status_download_url }}" class="download-link" download role="button" aria-describedby="download-description">
+            <span aria-hidden="true">⬇️</span>
+            <span>Download Status JSON</span>
+          </a>
+        </div>
+        <div id="download-description" class="sr-only">Download the complete status data as a JSON file for external analysis</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-content">
+      <h2 class="card-title">Tracked Uploads</h2>
+      {% if uploaded_records %}
+      <div class="section-block">
+        <h3 class="section-heading">Records</h3>
+        <div class="table-wrapper">
+          <table class="responsive-table striped highlight">
+            <thead>
+              <tr>
+                <th scope="col">File</th>
+                <th scope="col">Checksum</th>
+                <th scope="col">Size</th>
+                <th scope="col">Uploaded</th>
+                <th scope="col">Last Updated</th>
+                <th scope="col" class="right-align">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for record in uploaded_records %}
+              <tr>
+                <td data-label="File"><span class="truncate mono">{{ record.display_path }}</span></td>
+                <td data-label="Checksum"><code>{{ record.display_checksum }}</code></td>
+                <td data-label="Size">{{ record.display_size }}</td>
+                <td data-label="Uploaded">{{ record.uploaded_at }}</td>
+                <td data-label="Last Updated">{{ record.updated_at }}</td>
+                <td data-label="Actions" class="right-align">
+                  <form method="post" action="{{ page_url }}" class="inline-form">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="clear">
+                    <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
+                    <button type="submit" 
+                            class="action-btn" 
+                            title="Clear this upload record" 
+                            aria-label="Clear upload record for {{ record.display_path }}"
+                            onclick="return confirm('Are you sure you want to clear this upload record? This action cannot be undone.');">
+                      <span aria-hidden="true">✕</span>
+                      <span class="sr-only">Clear record for {{ record.display_path }}</span>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% else %}
+      <div class="section-block">
+        <h3 class="section-heading">Records</h3>
+        <p class="section-text">No upload records available.</p>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+"""
+
 class PwnS3Upload(plugins.Plugin):
     __author__ = 'gallis-local'
     __version__ = '2.0.0'
@@ -38,15 +553,18 @@ class PwnS3Upload(plugins.Plugin):
         self.ready = False
         self.options = dict()
         self._handshakes_dir = '/home/pi/handshakes'  # Default path
+        self._status_path = '/root/.s3_uploads'
         try:
-            self.report = StatusFile('/root/.s3_uploads', data_format='json')
+            self.report = StatusFile(self._status_path, data_format='json')
         except JSONDecodeError:
-            os.remove('/root/.s3_uploads')
-            self.report = StatusFile('/root/.s3_uploads', data_format='json')
+            os.remove(self._status_path)
+            self.report = StatusFile(self._status_path, data_format='json')
         self.lock = Lock()
 
+        self._status_data = self._load_status_data()
+
         # In-memory checksum cache to avoid recomputing hashes repeatedly
-        persisted_cache = self.report.data_field_or('checksum_cache', default={})
+        persisted_cache = self.status_field_or('checksum_cache', default={})
         if isinstance(persisted_cache, dict):
             self._checksum_cache = dict(persisted_cache)
         else:
@@ -54,6 +572,82 @@ class PwnS3Upload(plugins.Plugin):
         
         # Ensure boto3 dependencies are available
         self.ensure_dependencies()
+
+    def _load_status_data(self):
+        """Return the persisted status data stored on disk."""
+        try:
+            with open(self._status_path, 'r', encoding='utf-8') as handle:
+                data = json.load(handle)
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError, TypeError) as exc:
+            self.LogInfo(f"Failed to load status file {self._status_path}: {exc}")
+            return {}
+
+        if isinstance(data, dict):
+            return data
+
+        self.LogInfo(
+            f"Unexpected data format in status file {self._status_path} - resetting cache"
+        )
+        return {}
+
+    def _persist_status_data(self):
+        """Persist the in-memory status data to disk and the StatusFile helper."""
+        tmp_path = f"{self._status_path}.tmp"
+        try:
+            with open(tmp_path, 'w', encoding='utf-8') as handle:
+                json.dump(self._status_data, handle, ensure_ascii=False, indent=2, sort_keys=True)
+            os.replace(tmp_path, self._status_path)
+        except OSError as exc:
+            self.LogInfo(f"Failed to persist status file {self._status_path}: {exc}")
+            try:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+            except OSError:
+                pass
+        else:
+            try:
+                self.report.update(data=self._status_data)
+            except Exception as exc:
+                self.LogDebug(f"Unable to sync StatusFile helper: {exc}")
+
+    def _refresh_status_data_from_disk(self):
+        """Reload the status data from disk when external updates occur."""
+        loaded = self._load_status_data()
+        if loaded != self._status_data:
+            self._status_data = loaded
+
+        checksum_cache = self._status_data.get('checksum_cache')
+        if isinstance(checksum_cache, dict):
+            self._checksum_cache = dict(checksum_cache)
+        else:
+            self._checksum_cache = {}
+
+    def status_field_or(self, field, default=None):
+        """Return a status field value without exposing mutable references."""
+        value = self._status_data.get(field, default)
+        if isinstance(value, dict):
+            return dict(value)
+        if isinstance(value, list):
+            return list(value)
+        return value
+
+    def _update_status_data(self, updates):
+        """Merge updates into the status data and persist the result."""
+        if not isinstance(updates, dict):
+            return
+
+        changed = False
+        for key, value in updates.items():
+            if self._status_data.get(key) != value:
+                self._status_data[key] = value
+                changed = True
+
+        if changed:
+            self._persist_status_data()
+            if 'checksum_cache' in updates and isinstance(updates['checksum_cache'], dict):
+                self._checksum_cache = dict(updates['checksum_cache'])
 
     def ensure_dependencies(self):
         """Ensure required dependencies are installed"""
@@ -221,7 +815,7 @@ class PwnS3Upload(plugins.Plugin):
     # Log Functions - Loaded
     def on_loaded(self):
         self.ready = True
-        uploaded_count = len(self.report.data_field_or('uploaded_files', default=[]))
+        uploaded_count = len(self.status_field_or('uploaded_files', default=[]))
         self.LogInfo(f"Pwnagotchi S3 Handshakes Upload Loaded. {uploaded_count} files previously uploaded.")
         
         # Debug: Check if options are loaded at startup
@@ -335,7 +929,7 @@ class PwnS3Upload(plugins.Plugin):
     
     def get_uploaded_records(self):
         """Return normalized upload records stored in the status file."""
-        raw_records = self.report.data_field_or('uploaded_files', default=[])
+        raw_records = self.status_field_or('uploaded_files', default=[])
 
         normalized_records = []
         for item in raw_records:
@@ -357,7 +951,7 @@ class PwnS3Upload(plugins.Plugin):
 
         # Ensure the status file always stores the normalized representation
         if raw_records != normalized_records:
-            self.report.update(data={
+            self._update_status_data({
                 'uploaded_files': normalized_records,
                 'total_uploaded': len(normalized_records)
             })
@@ -391,6 +985,24 @@ class PwnS3Upload(plugins.Plugin):
             self.LogInfo(f"Failed to compute checksum for {file_path}: {exc}")
             return None
         return sha256.hexdigest()
+
+    @staticmethod
+    def _format_size(num_bytes):
+        """Return a human readable string for a byte count."""
+        if not isinstance(num_bytes, (int, float)) or num_bytes < 0:
+            return 'n/a'
+
+        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+        size = float(num_bytes)
+        unit_index = 0
+        while size >= 1024 and unit_index < len(units) - 1:
+            size /= 1024.0
+            unit_index += 1
+
+        if unit_index == 0:
+            return f"{int(size)} {units[unit_index]}"
+
+        return f"{size:.2f} {units[unit_index]}"
 
     def track_uploaded_file(self, relative_path, checksum):
         """Record a successfully uploaded file using its checksum."""
@@ -434,7 +1046,7 @@ class PwnS3Upload(plugins.Plugin):
         ]
         total_unique = len(set(identifiers))
 
-        self.report.update(data={
+        self._update_status_data({
             'uploaded_files': records,
             'last_upload': timestamp,
             'total_uploaded': total_unique
@@ -444,6 +1056,59 @@ class PwnS3Upload(plugins.Plugin):
             f"({'checksum ' + checksum if checksum else 'no checksum'})"
         )
 
+    def clear_uploaded_record(self, identifier):
+        """Remove a tracked upload entry by checksum or path."""
+        if not identifier:
+            return False
+
+        with self.lock:
+            self._refresh_status_data_from_disk()
+            records = self.get_uploaded_records()
+            retained_records = []
+            removed = False
+            removed_paths = set()
+
+            for record in records:
+                record_identifiers = {
+                    record.get('checksum'),
+                    record.get('path'),
+                    record.get('filename')
+                }
+                if identifier in record_identifiers:
+                    removed = True
+                    record_path = record.get('path') or record.get('filename')
+                    if record_path:
+                        removed_paths.add(record_path)
+                    continue
+                retained_records.append(record)
+
+            if not removed:
+                return False
+
+            identifiers = [
+                item.get('checksum') or item.get('path') or item.get('filename')
+                for item in retained_records
+                if item.get('checksum') or item.get('path') or item.get('filename')
+            ]
+            total_unique = len(set(identifiers))
+
+            updates = {
+                'uploaded_files': retained_records,
+                'total_uploaded': total_unique
+            }
+
+            if removed_paths:
+                cache = dict(self._checksum_cache) if self._checksum_cache else {}
+                cache_modified = False
+                for path in removed_paths:
+                    if cache.pop(path, None) is not None:
+                        cache_modified = True
+                if cache_modified:
+                    updates['checksum_cache'] = cache
+
+            self._update_status_data(updates)
+            return True
+
     # Get list of files that need to be uploaded
     def collect_pending_uploads(self):
         """Scan the handshake directory and build a chronologically ordered upload queue."""
@@ -452,20 +1117,29 @@ class PwnS3Upload(plugins.Plugin):
         if not os.path.exists(handshakes_dir):
             return []
 
-        uploaded_checksums = self.get_uploaded_checksums()
-        uploaded_paths = self.get_uploaded_paths()
+        self._refresh_status_data_from_disk()
+        uploaded_records = self.get_uploaded_records()
+        checksum_to_record = {}
+        path_to_record = {}
+        for record in uploaded_records:
+            record_path = record.get('path') or record.get('filename')
+            if record_path:
+                path_to_record[record_path] = record
+            record_checksum = record.get('checksum')
+            if record_checksum:
+                checksum_to_record[record_checksum] = record
 
         checksum_cache = self._checksum_cache
-        if not checksum_cache:
-            checksum_cache = self.report.data_field_or('checksum_cache', default={})
-            if not isinstance(checksum_cache, dict):
-                checksum_cache = {}
-        else:
+        if checksum_cache:
             checksum_cache = dict(checksum_cache)
+        else:
+            persisted_cache = self.status_field_or('checksum_cache', default={})
+            checksum_cache = persisted_cache if isinstance(persisted_cache, dict) else {}
 
         updated_cache = {}
         pending_files = []
         scanned_file_count = 0
+        records_updated = False
 
         for root, dirs, files in os.walk(handshakes_dir):
             dirs.sort()
@@ -514,11 +1188,54 @@ class PwnS3Upload(plugins.Plugin):
                 elif cache_entry:
                     updated_cache[relative_path] = cache_entry
 
-                if checksum and checksum in uploaded_checksums:
+                record_for_checksum = checksum_to_record.get(checksum) if checksum else None
+                record_for_path = path_to_record.get(relative_path)
+
+                if record_for_checksum:
+                    current_timestamp = None
+                    existing_path = record_for_checksum.get('path') or record_for_checksum.get('filename')
+                    if existing_path and existing_path != relative_path:
+                        path_to_record.pop(existing_path, None)
+                        record_for_checksum['path'] = relative_path
+                        record_for_checksum['filename'] = os.path.basename(relative_path)
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    if record_for_checksum.get('size') != size:
+                        record_for_checksum['size'] = size
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    if record_for_checksum.get('mtime_ns') != mtime_ns:
+                        record_for_checksum['mtime_ns'] = mtime_ns
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    path_to_record[relative_path] = record_for_checksum
                     self.LogDebug(f"Skipping {relative_path} - checksum already uploaded")
                     continue
 
-                if not checksum and relative_path in uploaded_paths:
+                if record_for_path and checksum:
+                    record_for_path_checksum = record_for_path.get('checksum')
+                    if record_for_path_checksum == checksum or not record_for_path_checksum:
+                        current_timestamp = self.get_current_datetime()
+                        record_for_path['checksum'] = checksum
+                        record_for_path['size'] = size
+                        record_for_path['mtime_ns'] = mtime_ns
+                        record_for_path['path'] = relative_path
+                        record_for_path['filename'] = os.path.basename(relative_path)
+                        record_for_path['updated_at'] = current_timestamp
+                        checksum_to_record[checksum] = record_for_path
+                        records_updated = True
+                        self.LogDebug(
+                            f"Skipping {relative_path} - associated legacy record refreshed"
+                        )
+                        continue
+
+                if not checksum and record_for_path:
                     self.LogDebug(
                         f"Skipping {relative_path} - path already uploaded (legacy tracking)"
                     )
@@ -533,10 +1250,22 @@ class PwnS3Upload(plugins.Plugin):
                 })
 
         if checksum_cache != updated_cache:
-            self.report.update(data={'checksum_cache': updated_cache})
+            self._update_status_data({'checksum_cache': updated_cache})
             self._checksum_cache = updated_cache
         else:
             self._checksum_cache = checksum_cache
+
+        if records_updated:
+            identifiers = [
+                record.get('checksum') or record.get('path') or record.get('filename')
+                for record in uploaded_records
+                if record.get('checksum') or record.get('path') or record.get('filename')
+            ]
+            total_unique = len(set(identifiers))
+            self._update_status_data({
+                'uploaded_files': uploaded_records,
+                'total_uploaded': total_unique
+            })
 
         pending_files.sort(key=lambda item: (item.get('mtime_ns') or 0, item['path']))
         self.LogDebug(
@@ -546,6 +1275,7 @@ class PwnS3Upload(plugins.Plugin):
     
     # Get upload statistics for review
     def get_upload_stats(self):
+        self._refresh_status_data_from_disk()
         uploaded_records = self.get_uploaded_records()
         all_files = self.get_handshake_files()
         pending_files = self.collect_pending_uploads()
@@ -562,8 +1292,110 @@ class PwnS3Upload(plugins.Plugin):
             'pending_count': len(pending_files),
             'uploaded_files': uploaded_file_names,
             'pending_files': pending_file_names,
-            'last_upload': self.report.data_field_or('last_upload', 'Never')
+            'last_upload': self.status_field_or('last_upload', 'Never')
         }
+
+    def on_webhook(self, path, request):
+        """Serve S3 upload status information within the web UI."""
+        normalized_path = (path or '').strip('/')
+
+        if normalized_path in {'', None}:
+            feedback = None
+            if request.method == 'POST':
+                action = request.form.get('action') if request.form else None
+                if action == 'clear':
+                    identifier = (request.form.get('identifier') or '').strip()
+                    if identifier:
+                        if self.clear_uploaded_record(identifier):
+                            feedback = {
+                                'category': 'success',
+                                'message': f"Removed tracked entry for '{identifier}'."
+                            }
+                        else:
+                            feedback = {
+                                'category': 'error',
+                                'message': f"No tracked entry matched '{identifier}'."
+                            }
+                    else:
+                        feedback = {
+                            'category': 'error',
+                            'message': 'Unable to clear entry without an identifier.'
+                        }
+                else:
+                    feedback = {
+                        'category': 'error',
+                        'message': 'Unsupported action requested.'
+                    }
+
+            self._refresh_status_data_from_disk()
+            uploaded_records = self.get_uploaded_records()
+
+            try:
+                summary = self.get_upload_stats()
+            except Exception as exc:
+                self.LogDebug(f"Failed to refresh upload stats for web UI: {exc}")
+                summary = {
+                    'total_handshakes': 'n/a',
+                    'pending_count': 'n/a',
+                    'uploaded_count': len(uploaded_records),
+                    'uploaded_files': [],
+                    'pending_files': [],
+                    'last_upload': self.status_field_or('last_upload', 'Never'),
+                    'total_uploaded': self.status_field_or('total_uploaded', len(uploaded_records))
+                }
+
+            if 'total_uploaded' not in summary:
+                summary['total_uploaded'] = self.status_field_or('total_uploaded', len(uploaded_records))
+
+            status_exists = os.path.exists(self._status_path)
+            status_mtime = None
+            if status_exists:
+                try:
+                    mtime = os.path.getmtime(self._status_path)
+                    status_mtime = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                except OSError:
+                    status_mtime = None
+
+            plugin_name = self.__module__.split('.')[-1]
+            page_url = url_for('plugins', name=plugin_name)
+            status_download_url = url_for('plugins', name=plugin_name, subpath='status.json')
+
+            display_records = []
+            for record in uploaded_records:
+                identifier = record.get('checksum') or record.get('path') or record.get('filename')
+                display_path = record.get('path') or record.get('filename') or 'n/a'
+                display_records.append({
+                    'display_path': display_path,
+                    'display_checksum': record.get('checksum') or 'n/a',
+                    'display_size': self._format_size(record.get('size')),
+                    'uploaded_at': record.get('uploaded_at') or 'n/a',
+                    'updated_at': record.get('updated_at') or record.get('uploaded_at') or 'n/a',
+                    'clear_identifier': identifier or '',
+                })
+
+            return render_template_string(
+                WEB_STATUS_TEMPLATE,
+                status_path=self._status_path,
+                status_exists=status_exists,
+                status_mtime=status_mtime,
+                status_summary=summary,
+                uploaded_records=display_records,
+                status_download_url=status_download_url,
+                page_url=page_url,
+                feedback=feedback,
+                csrf_token=generate_csrf
+            )
+
+        if normalized_path == 'status.json':
+            self._refresh_status_data_from_disk()
+            response = Response(
+                json.dumps(self._status_data, indent=2, sort_keys=True),
+                mimetype='application/json'
+            )
+            response.headers['Content-Disposition'] = 'attachment; filename="s3_upload_status.json"'
+            return response
+
+        abort(404)
     
     # Get plugin configuration with defaults
     def get_plugin_config(self):
@@ -863,7 +1695,7 @@ class PwnS3Upload(plugins.Plugin):
 
                     # Update status report
                     uploaded_records = self.get_uploaded_records()
-                    self.report.update(data={
+                    self._update_status_data({
                         'last_upload_attempt': self.get_current_datetime(),
                         'last_upload_success': success,
                         'uploaded_files': uploaded_records,
