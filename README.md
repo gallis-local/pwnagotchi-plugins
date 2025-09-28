@@ -13,7 +13,7 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 
 ## 🚀 Easy Installation
 
-This repository provides automated plugin bundles compatible with Pwnagotchi's plugin system. **[📖 See Full Installation Guide](PLUGIN_INSTALLATION.md)**
+This repository provides automated plugin bundles compatible with Pwnagotchi's plugin system. **[📖 See Full Installation Guide](PLUGINS.md)**
 
 ### Quick Setup
 
@@ -24,10 +24,6 @@ main.custom_plugin_repos = [
     "https://github.com/gallis-local/pwnagotchi-plugins/releases/latest/download/pwnagotchi-plugins-bundle.zip"
 ]
 ```
-
-**Release Channels:**
-- 🚀 **Main**: Production-ready (use `latest` in URL above)
-- 🧪 **RC**: Release candidates for testing ([check releases](https://github.com/gallis-local/pwnagotchi-plugins/releases) for RC versions)
 
 Then run:
 ```bash
@@ -49,7 +45,7 @@ main.custom_plugin_repos = [
     "https://github.com/marbasec/UPSLite_Plugin_1_3/archive/master.zip",
     "https://github.com/wpa-2/Pwnagotchi-Plugins/archive/master.zip",
     "https://github.com/BraedenP232/pwnios/archive/main.zip",
-    "https://github.com/gallis-local/pwnagotchi-plugins/releases/latest/download/pwnagotchi-plugins-bundle.zip"
+    "https://github.com/gallis-local/pwnagotchi-plugins/archive/main.zip"
 ]
 ```
 
