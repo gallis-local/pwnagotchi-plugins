@@ -48,6 +48,12 @@ WEB_STATUS_TEMPLATE = """
     margin-bottom: 2rem;
   }
 
+  .s3-status .card-title {
+    margin-bottom: 1rem;
+    font-weight: 600;
+    color: #263238;
+  }
+
   .s3-status .status-meta {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -55,31 +61,27 @@ WEB_STATUS_TEMPLATE = """
   }
 
   .s3-status .status-chip {
-    background: rgba(236, 239, 241, 0.8);
-    border-radius: 10px;
+    background: #eceff1;
+    border-radius: 12px;
     padding: 0.9rem 1.1rem;
     line-height: 1.45;
-    box-shadow: inset 0 0 0 1px rgba(120, 144, 156, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(120, 144, 156, 0.18);
   }
 
   .s3-status .status-chip .label {
     text-transform: uppercase;
     font-size: 0.7rem;
-    letter-spacing: 0.1em;
-    color: #607d8b;
+    letter-spacing: 0.08em;
+    color: #546e7a;
     display: block;
-    margin-bottom: 0.4rem;
+    margin-bottom: 0.35rem;
   }
 
   .s3-status .status-chip .value {
     font-weight: 600;
-    font-size: 1rem;
+    font-size: 0.95rem;
     word-break: break-word;
-    color: #263238;
-  }
-
-  .s3-status .card-title {
-    margin-bottom: 1rem;
+    color: #1c313a;
   }
 
   .s3-status .card-action {
@@ -87,29 +89,53 @@ WEB_STATUS_TEMPLATE = """
     justify-content: flex-end;
   }
 
+  .s3-status .card-action .btn {
+    background-color: #546e7a;
+  }
+
+  .s3-status .card-action .btn:hover {
+    background-color: #455a64;
+  }
+
   .s3-status .table-wrapper {
     margin-top: 1rem;
     overflow-x: auto;
-    border-radius: 10px;
-    border: 1px solid rgba(176, 190, 197, 0.4);
+    border-radius: 12px;
+    border: 1px solid rgba(176, 190, 197, 0.6);
   }
 
   .s3-status table {
     margin-bottom: 0;
     width: 100%;
-    min-width: 600px;
+    min-width: 640px;
+    border-collapse: collapse;
   }
 
   .s3-status table thead th {
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    font-size: 0.75rem;
-    color: #607d8b;
+    font-size: 0.72rem;
+    color: #455a64;
+    background-color: #eceff1;
+    border-bottom: 1px solid rgba(120, 144, 156, 0.3);
   }
 
   .s3-status table td,
   .s3-status table th {
-    padding: 0.9rem 1.1rem;
+    padding: 0.85rem 1rem;
+  }
+
+  .s3-status table tbody tr:nth-child(even) {
+    background-color: rgba(236, 239, 241, 0.35);
+  }
+
+  .s3-status table tbody tr:hover {
+    background-color: rgba(207, 216, 220, 0.5);
+  }
+
+  .s3-status table tbody td {
+    font-size: 0.9rem;
+    color: #37474f;
   }
 
   .s3-status td code,
@@ -117,6 +143,14 @@ WEB_STATUS_TEMPLATE = """
     word-break: break-all;
     font-family: "Roboto Mono", "Source Code Pro", monospace;
     font-size: 0.85rem;
+    color: #263238;
+  }
+
+  .s3-status td code {
+    background-color: rgba(207, 216, 220, 0.35);
+    padding: 0.2rem 0.35rem;
+    border-radius: 4px;
+    display: inline-block;
   }
 
   .s3-status .truncate {
@@ -125,20 +159,30 @@ WEB_STATUS_TEMPLATE = """
     max-width: 100%;
   }
 
-  .s3-status .table-wrapper .table-footer {
-    padding: 0.75rem 1rem;
-    font-size: 0.85rem;
-    color: #546e7a;
-  }
-
   .s3-status .inline-form {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
   }
 
   .s3-status .inline-form button {
-    padding: 0 0.75rem;
+    padding: 0;
+  }
+
+  .s3-status .inline-form button.icon-only {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 999px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .s3-status .inline-form button.icon-only i {
+    font-size: 1.25rem;
+  }
+
+  .s3-status th.right-align,
+  .s3-status td.right-align {
+    text-align: right;
   }
 
   @media (max-width: 720px) {
@@ -198,7 +242,8 @@ WEB_STATUS_TEMPLATE = """
     }
 
     .s3-status .inline-form button {
-      padding: 0 0.5rem;
+      width: 2.5rem;
+      height: 2.5rem;
     }
   }
 </style>
@@ -284,9 +329,8 @@ WEB_STATUS_TEMPLATE = """
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="action" value="clear">
                   <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
-                  <button type="submit" class="btn-flat waves-effect waves-red red-text text-darken-2" title="Remove this record">
-                    <i class="material-icons left" aria-hidden="true">backspace</i>
-                    Clear
+                  <button type="submit" class="btn-flat btn-small waves-effect waves-light red-text text-darken-2 icon-only" title="Remove this record" aria-label="Remove this record">
+                    <i class="material-icons" aria-hidden="true">delete</i>
                   </button>
                 </form>
               </td>
