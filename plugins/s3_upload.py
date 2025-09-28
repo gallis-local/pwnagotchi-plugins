@@ -49,9 +49,20 @@ WEB_STATUS_TEMPLATE = """
   }
 
   .s3-status .card-title {
-    margin-bottom: 1rem;
+    margin: 0 0 1rem;
     font-weight: 600;
     color: #263238;
+    font-size: 1.55rem;
+    line-height: 1.3;
+  }
+
+  .s3-status .section-heading {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: #455a64;
   }
 
   .s3-status .status-meta {
@@ -85,12 +96,14 @@ WEB_STATUS_TEMPLATE = """
     text-decoration: none;
   }
 
-  .s3-status .card-action {
-    display: flex;
-    justify-content: flex-end;
+  .s3-status .status-download {
+    margin-top: 2rem;
   }
 
-  .s3-status .card-action a {
+  .s3-status .status-download a {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
     color: #1a237e;
     text-decoration: underline;
     font-weight: 500;
@@ -235,7 +248,7 @@ WEB_STATUS_TEMPLATE = """
 
   <div class="card">
     <div class="card-content">
-      <span class="card-title">Status Overview</span>
+      <h2 class="card-title">Status Overview</h2>
       <div class="status-meta">
         <div class="status-chip">
           <span class="label">Status file</span>
@@ -270,15 +283,16 @@ WEB_STATUS_TEMPLATE = """
           <span class="value">{{ uploaded_records|length }}</span>
         </div>
       </div>
-    </div>
-    <div class="card-action">
-      <a href="{{ status_download_url }}" download>Download status JSON</a>
+      <div class="status-download">
+        <h3 class="section-heading">Status JSON</h3>
+        <a href="{{ status_download_url }}" download>Download status JSON</a>
+      </div>
     </div>
   </div>
 
   <div class="card">
     <div class="card-content">
-      <span class="card-title">Tracked Uploads</span>
+      <h2 class="card-title">Tracked Uploads</h2>
       {% if uploaded_records %}
       <div class="table-wrapper">
         <table class="responsive-table striped highlight">
