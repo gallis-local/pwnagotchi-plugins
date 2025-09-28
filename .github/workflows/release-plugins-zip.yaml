@@ -46,11 +46,11 @@ jobs:
         if [ "${{ github.event_name }}" = "release" ]; then
           VERSION="${{ github.event.release.tag_name }}"
         elif [ "${{ github.ref_name }}" = "main" ]; then
-          # For main branch, use timestamp-based version
-          VERSION="v$(date +%Y.%m.%d)-main-$(git rev-parse --short HEAD)"
+          # For main branch, use consistent "latest" tag for easy downloading
+          VERSION="latest"
         elif [ "${{ github.ref_name }}" = "rc" ]; then
-          # For rc branch, use rc version
-          VERSION="v$(date +%Y.%m.%d)-rc-$(git rev-parse --short HEAD)"
+          # For rc branch, use "latest-rc" tag
+          VERSION="latest-rc"
         else
           # For tags
           VERSION="${GITHUB_REF#refs/tags/}"
@@ -233,21 +233,17 @@ jobs:
         echo "Bundle structure created:"
         find build/pwnagotchi-plugins-bundle -type f | sort
     
-    - name: Create ZIP bundle
+    - name: Create simple ZIP bundle
       run: |
         cd build
         
-        # Create the ZIP file with proper structure for Pwnagotchi
-        zip -r pwnagotchi-plugins-bundle.zip pwnagotchi-plugins-bundle/
-        
-        # Also create a simple ZIP with just the plugin files (alternative format)
+        # Create simple ZIP with just the plugin files (most compatible format)
         cd pwnagotchi-plugins-bundle
-        zip -r ../pwnagotchi-plugins-simple.zip *.py *.toml *.yml *.yaml 2>/dev/null || true
+        zip -r ../pwnagotchi-plugins.zip *.py *.toml *.yml *.yaml plugin_registry.json 2>/dev/null || true
         cd ..
         
-        # Generate checksums
-        sha256sum pwnagotchi-plugins-bundle.zip > pwnagotchi-plugins-bundle.zip.sha256
-        sha256sum pwnagotchi-plugins-simple.zip > pwnagotchi-plugins-simple.zip.sha256
+        # Generate checksum
+        sha256sum pwnagotchi-plugins.zip > pwnagotchi-plugins.zip.sha256
         
         echo "Generated files:"
         ls -la *.zip *.sha256
@@ -256,30 +252,25 @@ jobs:
       run: |
         cd build
         
-        echo "=== Bundle ZIP Contents ==="
-        unzip -l pwnagotchi-plugins-bundle.zip
+        echo "=== Plugin ZIP Contents ==="
+        unzip -l pwnagotchi-plugins.zip
         
-        echo ""
-        echo "=== Simple ZIP Contents ==="
-        unzip -l pwnagotchi-plugins-simple.zip
+        # Validate ZIP structure
+        unzip -t pwnagotchi-plugins.zip
         
-        # Validate that we have the expected structure
-        unzip -t pwnagotchi-plugins-bundle.zip
-        unzip -t pwnagotchi-plugins-simple.zip
-        
-        echo "Both ZIP files are valid"
+        echo "ZIP file is valid and ready for Pwnagotchi"
     
     - name: Determine release settings
       id: release_settings
       run: |
         if [ "${{ github.ref_name }}" = "main" ]; then
-          echo "RELEASE_NAME=Pwnagotchi Plugins Bundle ${{ steps.version.outputs.VERSION }} (Latest)" >> $GITHUB_OUTPUT
+          echo "RELEASE_NAME=Pwnagotchi Plugins (Latest)" >> $GITHUB_OUTPUT
           echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
-          echo "RELEASE_TYPE=🚀 **Latest Release** from main branch" >> $GITHUB_OUTPUT
+          echo "RELEASE_TYPE=🚀 **Latest Release** - Always up-to-date plugins" >> $GITHUB_OUTPUT
         elif [ "${{ github.ref_name }}" = "rc" ]; then
-          echo "RELEASE_NAME=Pwnagotchi Plugins Bundle ${{ steps.version.outputs.VERSION }} (Release Candidate)" >> $GITHUB_OUTPUT
+          echo "RELEASE_NAME=Pwnagotchi Plugins (Release Candidate)" >> $GITHUB_OUTPUT
           echo "IS_PRERELEASE=true" >> $GITHUB_OUTPUT
-          echo "RELEASE_TYPE=🧪 **Release Candidate** from rc branch" >> $GITHUB_OUTPUT
+          echo "RELEASE_TYPE=🧪 **Release Candidate** - Testing version" >> $GITHUB_OUTPUT
         else
           echo "RELEASE_NAME=Pwnagotchi Plugins Bundle ${{ steps.version.outputs.VERSION }}" >> $GITHUB_OUTPUT
           echo "IS_PRERELEASE=false" >> $GITHUB_OUTPUT
@@ -293,60 +284,54 @@ jobs:
       run: |
         # Create release body file
         cat > release_body.md << 'EOF'
-        # Pwnagotchi Plugins Bundle ${{ steps.version.outputs.VERSION }}
+        # Pwnagotchi Plugins ${{ steps.version.outputs.VERSION }}
         
         ${{ steps.release_settings.outputs.RELEASE_TYPE }}
         
-        This release contains a bundle of Pwnagotchi plugins ready for installation.
+        This release contains Pwnagotchi plugins in the simplest format for maximum compatibility.
         
-        ## Installation Instructions
+        ## 📋 Easy Installation (Recommended)
         
-        ### Method 1: Add to Pwnagotchi Configuration
-        
-        Add the following to your `/etc/pwnagotchi/config.toml`:
+        Add this **single line** to your `/etc/pwnagotchi/config.toml`:
         
         ```toml
         main.custom_plugin_repos = [
-            "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip"
+            "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins.zip"
         ]
         ```
         
-        Then run:
+        Then update your plugins:
         ```bash
         sudo pwnagotchi plugins update
         sudo pwnagotchi plugins list
         sudo pwnagotchi plugins install <plugin_name>
         ```
         
-        ### Method 2: Manual Installation
+        ## 🔗 Direct Download
         
-        1. Download `pwnagotchi-plugins-simple.zip`
-        2. Extract to your custom plugins directory
-        3. Configure plugins in your `config.toml`
+        **Always Latest**: `https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins.zip`
         
-        ## Files in this Release
+        ## 📦 What's Included
         
-        - `pwnagotchi-plugins-bundle.zip` - Complete bundle with metadata (recommended)
-        - `pwnagotchi-plugins-simple.zip` - Simple ZIP with just plugin files
-        - `plugin_registry.json` - Plugin metadata and registry information
-        - SHA256 checksums for verification
+        - **pwnagotchi-plugins.zip** - Simple ZIP with all plugins (recommended)
+        - **plugin_registry.json** - Plugin metadata and information
+        - **SHA256 checksum** - For file verification
         
-        ## Plugin Repository URL
+        ## 🔧 Build Information
         
-        For `custom_plugin_repos` configuration:
-        ```
-        https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip
-        ```
-        
-        ## Build Information
-        
-        - **Branch**: `${{ github.ref_name }}`
-        - **Commit**: `${{ github.sha }}`
-        - **Build Time**: $(date -u +"%Y-%m-%d %H:%M:%SZ")
-        - **Compatible with**: Pwnagotchi plugin system
+        - **Branch**: ${{ github.ref_name }}
+        - **Commit**: ${{ github.sha }}
+        - **Built**: $(date -u +"%Y-%m-%d %H:%M:%SZ")
+        - **Plugins**: $(find plugins -name "*.py" | wc -l) Python plugins included
         EOF
         
-        # Create release with all assets
+        # Delete existing release if it exists (for latest/latest-rc tags)
+        if gh release view "${{ steps.version.outputs.VERSION }}" >/dev/null 2>&1; then
+          echo "Deleting existing release ${{ steps.version.outputs.VERSION }}"
+          gh release delete "${{ steps.version.outputs.VERSION }}" --yes --cleanup-tag
+        fi
+        
+        # Create release with assets
         PRERELEASE_FLAG=""
         if [ "${{ steps.release_settings.outputs.IS_PRERELEASE }}" = "true" ]; then
           PRERELEASE_FLAG="--prerelease"
@@ -356,46 +341,42 @@ jobs:
           --title "${{ steps.release_settings.outputs.RELEASE_NAME }}" \
           --notes-file release_body.md \
           $PRERELEASE_FLAG \
-          build/pwnagotchi-plugins-bundle.zip \
-          build/pwnagotchi-plugins-simple.zip \
+          build/pwnagotchi-plugins.zip \
           build/plugin_registry.json \
-          build/pwnagotchi-plugins-bundle.zip.sha256 \
-          build/pwnagotchi-plugins-simple.zip.sha256
+          build/pwnagotchi-plugins.zip.sha256
     
 
     
     - name: Output release information
       run: |
-        echo "==================================="
-        echo "🚀 Release Created Successfully!"
-        echo "==================================="
+        echo "========================================="
+        echo "🚀 Pwnagotchi Plugins Release Complete!"
+        echo "========================================="
         echo ""
-        echo "📦 Plugin Bundle URL for Pwnagotchi:"
-        echo "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip"
+        echo "📦 DIRECT DOWNLOAD URL (Always Latest):"
+        echo "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins.zip"
         echo ""
-        echo "⚙️  Add to your Pwnagotchi config.toml:"
+        echo "⚙️  PWNAGOTCHI CONFIG (Copy & Paste):"
         echo "main.custom_plugin_repos = ["
-        echo "    \"https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip\""
+        echo "    \"https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins.zip\""
         echo "]"
         echo ""
-        echo "🔧 Installation commands:"
+        echo "🔧 INSTALLATION COMMANDS:"
         echo "sudo pwnagotchi plugins update"
         echo "sudo pwnagotchi plugins list"
+        echo "sudo pwnagotchi plugins install bt-tether"
         echo "sudo pwnagotchi plugins install s3_upload"
         echo ""
-        echo "📋 Release Details:"
-        echo "- Version: ${{ steps.version.outputs.VERSION }}"
+        echo "📋 RELEASE INFO:"
+        echo "- Tag: ${{ steps.version.outputs.VERSION }}"
         echo "- Branch: ${{ github.ref_name }}"
-        echo "- Repository: ${{ github.repository }}"
-        echo "- Bundle: pwnagotchi-plugins-bundle.zip"
-        echo "- Simple: pwnagotchi-plugins-simple.zip"
-        echo "- Prerelease: ${{ steps.release_settings.outputs.IS_PRERELEASE }}"
+        echo "- Commit: $(git rev-parse --short HEAD)"
+        echo "- Plugins: $(find plugins -name "*.py" | wc -l) available"
+        echo "- Format: Simple ZIP (maximum compatibility)"
         echo ""
         if [ "${{ github.ref_name }}" = "main" ]; then
-          echo "🎯 This is the LATEST release from the main branch"
-          echo "   Recommended for production use"
+          echo "🎯 PRODUCTION READY - Use this URL in your Pwnagotchi!"
         elif [ "${{ github.ref_name }}" = "rc" ]; then
-          echo "🧪 This is a RELEASE CANDIDATE from the rc branch"
-          echo "   For testing new features before main release"
+          echo "🧪 TESTING VERSION - Use latest-rc for pre-release testing"
         fi
-        echo "==================================="
+        echo "========================================="

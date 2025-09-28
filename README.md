@@ -39,27 +39,17 @@ sudo pwnagotchi plugins install s3_upload
 
 - [pwnios](https://github.com/BraedenP232/pwnios)
 
-## 🔄 Automated Release System
-
-This repository uses GitHub Actions to automatically package plugins into Pwnagotchi-compatible bundles:
-
-- **Automated ZIP Creation**: Plugin files are automatically bundled on each release
-- **Metadata Extraction**: Plugin information (version, author, description) is automatically parsed
-- **Multiple Formats**: Both full bundles and simple ZIP files are generated
-- **Release URLs**: Direct URLs for `custom_plugin_repos` configuration
-- **Validation**: ZIP files are tested for proper structure
-
 ### Other Plugin Repositories
 
 ```toml
 main.custom_plugin_repos = [
-    "https://github.com/gallis-local/pwnagotchi-plugins/releases/latest/download/pwnagotchi-plugins-bundle.zip",
     "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
     "https://github.com/Sniffleupagus/pwnagotchi_plugins/archive/master.zip",
     "https://github.com/NeonLightning/pwny/archive/master.zip",
     "https://github.com/marbasec/UPSLite_Plugin_1_3/archive/master.zip",
     "https://github.com/wpa-2/Pwnagotchi-Plugins/archive/master.zip",
-    "https://github.com/BraedenP232/pwnios/archive/main.zip"
+    "https://github.com/BraedenP232/pwnios/archive/main.zip",
+    "https://github.com/gallis-local/pwnagotchi-plugins/releases/latest/download/pwnagotchi-plugins-bundle.zip"
 ]
 ```
 
