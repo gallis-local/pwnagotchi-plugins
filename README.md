@@ -21,7 +21,7 @@ Add to your `/etc/pwnagotchi/config.toml`:
 
 ```toml
 main.custom_plugin_repos = [
-    "https://github.com/gallis-local/pwnagotchi-plugins/releases/latest/download/pwnagotchi-plugins-bundle.zip"
+    "https://github.com/gallis-local/pwnagotchi-plugins/archive/main.zip"
 ]
 ```
 
