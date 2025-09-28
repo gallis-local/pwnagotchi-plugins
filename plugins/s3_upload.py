@@ -18,6 +18,7 @@ import hashlib
 from threading import Lock
 from pwnagotchi.utils import StatusFile
 from json import JSONDecodeError
+from flask import abort, render_template_string, Response, url_for
 
 # Try to import boto3, install if not available
 try:
@@ -28,6 +29,79 @@ except ImportError:
     BOTO3_AVAILABLE = False
 
 TAG = "[S3 Plugin]"
+
+WEB_STATUS_TEMPLATE = """
+{% extends "base.html" %}
+{% set active_page = "plugins" %}
+{% block title %}S3 Upload Status{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col s12 m6">
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title">Status Overview</span>
+        <p><strong>Status file:</strong> {{ status_path }}</p>
+        <p><strong>Exists:</strong> {{ 'Yes' if status_exists else 'No' }}</p>
+        <p><strong>Last updated:</strong> {{ status_mtime or 'Never' }}</p>
+        <p><strong>Total uploaded:</strong> {{ status_summary.total_uploaded }}</p>
+        <p><strong>Last upload:</strong> {{ status_summary.last_upload }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col s12 m6">
+    <div class="card">
+      <div class="card-content">
+        <span class="card-title">Pending Summary</span>
+        <p><strong>Total handshakes:</strong> {{ status_summary.total_handshakes }}</p>
+        <p><strong>Pending uploads:</strong> {{ status_summary.pending_count }}</p>
+        <p><strong>Uploaded entries tracked:</strong> {{ uploaded_records|length }}</p>
+      </div>
+      <div class="card-action">
+        <a href="{{ raw_status_url }}" target="_blank">View raw status JSON</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <span class="card-title">Tracked Uploads</span>
+    {% if uploaded_records %}
+    <table class="striped responsive-table">
+      <thead>
+        <tr>
+          <th>File</th>
+          <th>Checksum</th>
+          <th>Uploaded At</th>
+          <th>Updated At</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for record in uploaded_records %}
+        <tr>
+          <td>{{ record.path or record.filename }}</td>
+          <td><code>{{ record.checksum or 'n/a' }}</code></td>
+          <td>{{ record.uploaded_at or 'n/a' }}</td>
+          <td>{{ record.updated_at or record.uploaded_at or 'n/a' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p>No upload records available.</p>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-content">
+    <span class="card-title">Raw Status Data</span>
+    <pre style="white-space: pre-wrap">{{ status_json }}</pre>
+  </div>
+</div>
+{% endblock %}
+"""
 
 class PwnS3Upload(plugins.Plugin):
     __author__ = 'gallis-local'
@@ -709,6 +783,65 @@ class PwnS3Upload(plugins.Plugin):
             'pending_files': pending_file_names,
             'last_upload': self.status_field_or('last_upload', 'Never')
         }
+
+    def on_webhook(self, path, request):
+        """Serve S3 upload status information within the web UI."""
+        normalized_path = (path or '').strip('/')
+
+        if normalized_path in {'', None}:
+            self._refresh_status_data_from_disk()
+            uploaded_records = self.get_uploaded_records()
+
+            try:
+                summary = self.get_upload_stats()
+            except Exception as exc:
+                self.LogDebug(f"Failed to refresh upload stats for web UI: {exc}")
+                summary = {
+                    'total_handshakes': 'n/a',
+                    'pending_count': 'n/a',
+                    'uploaded_count': len(uploaded_records),
+                    'uploaded_files': [],
+                    'pending_files': [],
+                    'last_upload': self.status_field_or('last_upload', 'Never'),
+                    'total_uploaded': self.status_field_or('total_uploaded', len(uploaded_records))
+                }
+
+            if 'total_uploaded' not in summary:
+                summary['total_uploaded'] = self.status_field_or('total_uploaded', len(uploaded_records))
+
+            status_exists = os.path.exists(self._status_path)
+            status_mtime = None
+            if status_exists:
+                try:
+                    mtime = os.path.getmtime(self._status_path)
+                    status_mtime = datetime.datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+                except OSError:
+                    status_mtime = None
+
+            status_data = dict(self._status_data)
+            status_json = json.dumps(status_data, indent=2, sort_keys=True)
+            plugin_name = self.__module__.split('.')[-1]
+            raw_status_url = url_for('plugins', name=plugin_name, subpath='status.json')
+
+            return render_template_string(
+                WEB_STATUS_TEMPLATE,
+                status_path=self._status_path,
+                status_exists=status_exists,
+                status_mtime=status_mtime,
+                status_summary=summary,
+                uploaded_records=uploaded_records,
+                status_json=status_json,
+                raw_status_url=raw_status_url
+            )
+
+        if normalized_path == 'status.json':
+            self._refresh_status_data_from_disk()
+            return Response(
+                json.dumps(self._status_data, indent=2, sort_keys=True),
+                mimetype='application/json'
+            )
+
+        abort(404)
     
     # Get plugin configuration with defaults
     def get_plugin_config(self):
