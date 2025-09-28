@@ -214,7 +214,7 @@ jobs:
         - **Bundle Version**: ${{ steps.version.outputs.VERSION }}
         - **Source Branch**: ${{ github.ref_name }}
         - **Commit**: ${{ github.sha }}
-        - **Generated**: $(date -u +%Y-%m-%dT%H:%M:%S UTC)
+        - **Generated**: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
         
         ## Repository
         
@@ -279,106 +279,80 @@ jobs:
         fi
     
     - name: Create Release
-      id: create_release
-      uses: actions/create-release@v1
       if: github.event_name != 'release'
-      with:
-        tag_name: ${{ steps.version.outputs.VERSION }}
-        release_name: ${{ steps.release_settings.outputs.RELEASE_NAME }}
-        body: |
-          # Pwnagotchi Plugins Bundle ${{ steps.version.outputs.VERSION }}
-          
-          ${{ steps.release_settings.outputs.RELEASE_TYPE }}
-          
-          This release contains a bundle of Pwnagotchi plugins ready for installation.
-          
-          ## Installation Instructions
-          
-          ### Method 1: Add to Pwnagotchi Configuration
-          
-          Add the following to your `/etc/pwnagotchi/config.toml`:
-          
-          ```toml
-          main.custom_plugin_repos = [
-              "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip"
-          ]
-          ```
-          
-          Then run:
-          ```bash
-          sudo pwnagotchi plugins update
-          sudo pwnagotchi plugins list
-          sudo pwnagotchi plugins install <plugin_name>
-          ```
-          
-          ### Method 2: Manual Installation
-          
-          1. Download `pwnagotchi-plugins-simple.zip`
-          2. Extract to your custom plugins directory
-          3. Configure plugins in your `config.toml`
-          
-          ## Files in this Release
-          
-          - `pwnagotchi-plugins-bundle.zip` - Complete bundle with metadata (recommended)
-          - `pwnagotchi-plugins-simple.zip` - Simple ZIP with just plugin files
-          - `plugin_registry.json` - Plugin metadata and registry information
-          - SHA256 checksums for verification
-          
-          ## Plugin Repository URL
-          
-          For `custom_plugin_repos` configuration:
-          ```
-          https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip
-          ```
-          
-          ## Build Information
-          
-          - **Branch**: `${{ github.ref_name }}`
-          - **Commit**: `${{ github.sha }}`
-          - **Build Time**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-          - **Compatible with**: Pwnagotchi plugin system
-        draft: false
-        prerelease: ${{ steps.release_settings.outputs.IS_PRERELEASE }}
+      run: |
+        # Create release body file
+        cat > release_body.md << 'EOF'
+        # Pwnagotchi Plugins Bundle ${{ steps.version.outputs.VERSION }}
+        
+        ${{ steps.release_settings.outputs.RELEASE_TYPE }}
+        
+        This release contains a bundle of Pwnagotchi plugins ready for installation.
+        
+        ## Installation Instructions
+        
+        ### Method 1: Add to Pwnagotchi Configuration
+        
+        Add the following to your `/etc/pwnagotchi/config.toml`:
+        
+        ```toml
+        main.custom_plugin_repos = [
+            "https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip"
+        ]
+        ```
+        
+        Then run:
+        ```bash
+        sudo pwnagotchi plugins update
+        sudo pwnagotchi plugins list
+        sudo pwnagotchi plugins install <plugin_name>
+        ```
+        
+        ### Method 2: Manual Installation
+        
+        1. Download `pwnagotchi-plugins-simple.zip`
+        2. Extract to your custom plugins directory
+        3. Configure plugins in your `config.toml`
+        
+        ## Files in this Release
+        
+        - `pwnagotchi-plugins-bundle.zip` - Complete bundle with metadata (recommended)
+        - `pwnagotchi-plugins-simple.zip` - Simple ZIP with just plugin files
+        - `plugin_registry.json` - Plugin metadata and registry information
+        - SHA256 checksums for verification
+        
+        ## Plugin Repository URL
+        
+        For `custom_plugin_repos` configuration:
+        ```
+        https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.VERSION }}/pwnagotchi-plugins-bundle.zip
+        ```
+        
+        ## Build Information
+        
+        - **Branch**: `${{ github.ref_name }}`
+        - **Commit**: `${{ github.sha }}`
+        - **Build Time**: $(date -u +"%Y-%m-%d %H:%M:%SZ")
+        - **Compatible with**: Pwnagotchi plugin system
+        EOF
+        
+        # Create release with all assets
+        PRERELEASE_FLAG=""
+        if [ "${{ steps.release_settings.outputs.IS_PRERELEASE }}" = "true" ]; then
+          PRERELEASE_FLAG="--prerelease"
+        fi
+        
+        gh release create "${{ steps.version.outputs.VERSION }}" \
+          --title "${{ steps.release_settings.outputs.RELEASE_NAME }}" \
+          --notes-file release_body.md \
+          $PRERELEASE_FLAG \
+          build/pwnagotchi-plugins-bundle.zip \
+          build/pwnagotchi-plugins-simple.zip \
+          build/plugin_registry.json \
+          build/pwnagotchi-plugins-bundle.zip.sha256 \
+          build/pwnagotchi-plugins-simple.zip.sha256
     
-    - name: Upload Bundle ZIP to Release
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url || github.event.release.upload_url }}
-        asset_path: build/pwnagotchi-plugins-bundle.zip
-        asset_name: pwnagotchi-plugins-bundle.zip
-        asset_content_type: application/zip
-    
-    - name: Upload Simple ZIP to Release
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url || github.event.release.upload_url }}
-        asset_path: build/pwnagotchi-plugins-simple.zip
-        asset_name: pwnagotchi-plugins-simple.zip
-        asset_content_type: application/zip
-    
-    - name: Upload Plugin Registry
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url || github.event.release.upload_url }}
-        asset_path: build/plugin_registry.json
-        asset_name: plugin_registry.json
-        asset_content_type: application/json
-    
-    - name: Upload Bundle Checksum
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url || github.event.release.upload_url }}
-        asset_path: build/pwnagotchi-plugins-bundle.zip.sha256
-        asset_name: pwnagotchi-plugins-bundle.zip.sha256
-        asset_content_type: text/plain
-    
-    - name: Upload Simple ZIP Checksum
-      uses: actions/upload-release-asset@v1
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url || github.event.release.upload_url }}
-        asset_path: build/pwnagotchi-plugins-simple.zip.sha256
-        asset_name: pwnagotchi-plugins-simple.zip.sha256
-        asset_content_type: text/plain
+
     
     - name: Output release information
       run: |
