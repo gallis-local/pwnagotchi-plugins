@@ -452,8 +452,16 @@ class PwnS3Upload(plugins.Plugin):
         if not os.path.exists(handshakes_dir):
             return []
 
-        uploaded_checksums = self.get_uploaded_checksums()
-        uploaded_paths = self.get_uploaded_paths()
+        uploaded_records = self.get_uploaded_records()
+        checksum_to_record = {}
+        path_to_record = {}
+        for record in uploaded_records:
+            record_path = record.get('path') or record.get('filename')
+            if record_path:
+                path_to_record[record_path] = record
+            record_checksum = record.get('checksum')
+            if record_checksum:
+                checksum_to_record[record_checksum] = record
 
         checksum_cache = self._checksum_cache
         if not checksum_cache:
@@ -466,6 +474,7 @@ class PwnS3Upload(plugins.Plugin):
         updated_cache = {}
         pending_files = []
         scanned_file_count = 0
+        records_updated = False
 
         for root, dirs, files in os.walk(handshakes_dir):
             dirs.sort()
@@ -514,11 +523,54 @@ class PwnS3Upload(plugins.Plugin):
                 elif cache_entry:
                     updated_cache[relative_path] = cache_entry
 
-                if checksum and checksum in uploaded_checksums:
+                record_for_checksum = checksum_to_record.get(checksum) if checksum else None
+                record_for_path = path_to_record.get(relative_path)
+
+                if record_for_checksum:
+                    current_timestamp = None
+                    existing_path = record_for_checksum.get('path') or record_for_checksum.get('filename')
+                    if existing_path and existing_path != relative_path:
+                        path_to_record.pop(existing_path, None)
+                        record_for_checksum['path'] = relative_path
+                        record_for_checksum['filename'] = os.path.basename(relative_path)
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    if record_for_checksum.get('size') != size:
+                        record_for_checksum['size'] = size
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    if record_for_checksum.get('mtime_ns') != mtime_ns:
+                        record_for_checksum['mtime_ns'] = mtime_ns
+                        current_timestamp = current_timestamp or self.get_current_datetime()
+                        record_for_checksum['updated_at'] = current_timestamp
+                        records_updated = True
+
+                    path_to_record[relative_path] = record_for_checksum
                     self.LogDebug(f"Skipping {relative_path} - checksum already uploaded")
                     continue
 
-                if not checksum and relative_path in uploaded_paths:
+                if record_for_path and checksum:
+                    record_for_path_checksum = record_for_path.get('checksum')
+                    if record_for_path_checksum == checksum or not record_for_path_checksum:
+                        current_timestamp = self.get_current_datetime()
+                        record_for_path['checksum'] = checksum
+                        record_for_path['size'] = size
+                        record_for_path['mtime_ns'] = mtime_ns
+                        record_for_path['path'] = relative_path
+                        record_for_path['filename'] = os.path.basename(relative_path)
+                        record_for_path['updated_at'] = current_timestamp
+                        checksum_to_record[checksum] = record_for_path
+                        records_updated = True
+                        self.LogDebug(
+                            f"Skipping {relative_path} - associated legacy record refreshed"
+                        )
+                        continue
+
+                if not checksum and record_for_path:
                     self.LogDebug(
                         f"Skipping {relative_path} - path already uploaded (legacy tracking)"
                     )
@@ -537,6 +589,18 @@ class PwnS3Upload(plugins.Plugin):
             self._checksum_cache = updated_cache
         else:
             self._checksum_cache = checksum_cache
+
+        if records_updated:
+            identifiers = [
+                record.get('checksum') or record.get('path') or record.get('filename')
+                for record in uploaded_records
+                if record.get('checksum') or record.get('path') or record.get('filename')
+            ]
+            total_unique = len(set(identifiers))
+            self.report.update(data={
+                'uploaded_files': uploaded_records,
+                'total_uploaded': total_unique
+            })
 
         pending_files.sort(key=lambda item: (item.get('mtime_ns') or 0, item['path']))
         self.LogDebug(
