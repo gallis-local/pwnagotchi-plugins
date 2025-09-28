@@ -44,267 +44,110 @@ WEB_STATUS_TEMPLATE = """
 {% block styles %}
 {{ super() }}
 <style>
-  .s3-status {
-    --s3-surface: #ffffff;
-    --s3-border: rgba(176, 190, 197, 0.55);
-    --s3-muted: #455a64;
-    --s3-heading: #263238;
-    --s3-chip: rgba(236, 239, 241, 0.55);
-    --s3-chip-border: rgba(120, 144, 156, 0.22);
-  }
-
   .s3-status .card {
     margin-bottom: 2rem;
-    border-radius: 18px;
-    border: 1px solid var(--s3-border);
-    box-shadow: 0 14px 28px rgba(38, 50, 56, 0.08);
-    background: var(--s3-surface);
-  }
-
-  .s3-status .card-content {
-    padding: 2rem;
   }
 
   .s3-status .card-title {
-    margin: 0 0 1.5rem;
-    font-weight: 600;
-    color: var(--s3-heading);
-    font-size: 1.55rem;
-    line-height: 1.3;
-    letter-spacing: -0.01em;
+    font-size: 1.6rem;
+    margin-bottom: 1.5rem;
   }
 
-  .s3-status .section-block {
-    border-radius: 14px;
-    border: 1px solid var(--s3-border);
-    background: rgba(236, 239, 241, 0.4);
-    padding: 1.35rem 1.5rem;
-    margin-top: 1.5rem;
-  }
-
-  .s3-status .section-block:first-of-type {
-    margin-top: 0;
-  }
-
-  .s3-status .section-heading {
-    margin: 0 0 0.85rem;
-    font-size: 0.92rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: var(--s3-muted);
-  }
-
-  .s3-status .section-text {
-    margin: 0 0 1rem;
-    color: #37474f;
-    font-size: 0.95rem;
-    line-height: 1.5;
-  }
-
-  .s3-status .status-meta {
+  .s3-status .stat-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     gap: 1rem;
+    margin-bottom: 1.5rem;
   }
 
-  .s3-status .status-chip {
-    background: var(--s3-chip);
-    border-radius: 12px;
-    padding: 0.9rem 1.1rem;
-    line-height: 1.45;
-    box-shadow: inset 0 0 0 1px var(--s3-chip-border);
-  }
-
-  .s3-status .status-chip .label {
-    text-transform: uppercase;
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
-    color: #546e7a;
-    display: block;
-    margin-bottom: 0.35rem;
-  }
-
-  .s3-status .status-chip .value {
-    font-weight: 600;
-    font-size: 0.95rem;
-    word-break: break-word;
-    color: var(--s3-heading);
-  }
-
-  .s3-status .download-link {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    color: #1a237e;
-    text-decoration: none;
-    font-weight: 600;
-    padding: 0.45rem 0.85rem;
+  .s3-status .stat {
+    border: 1px solid #e0e0e0;
     border-radius: 8px;
-    transition: background 150ms ease, color 150ms ease;
-  }
-
-  .s3-status .download-link:hover,
-  .s3-status .download-link:focus {
-    background: rgba(26, 35, 126, 0.12);
-    color: #0d47a1;
-  }
-
-  .s3-status .download-link .material-icons {
-    font-size: 1.1rem;
-  }
-
-  .s3-status .table-wrapper {
-    margin-top: 0.5rem;
-    overflow-x: auto;
-    border-radius: 12px;
-    border: 1px solid rgba(176, 190, 197, 0.6);
-    background: #fff;
-  }
-
-  .s3-status table {
-    margin-bottom: 0;
-    width: 100%;
-    min-width: 640px;
-    border-collapse: collapse;
-  }
-
-  .s3-status table thead th {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 0.72rem;
-    color: var(--s3-muted);
-    background-color: rgba(236, 239, 241, 0.8);
-    border-bottom: 1px solid rgba(120, 144, 156, 0.3);
-  }
-
-  .s3-status table td,
-  .s3-status table th {
+    background: #fafafa;
     padding: 0.85rem 1rem;
   }
 
-  .s3-status table tbody tr:nth-child(even) {
-    background-color: rgba(236, 239, 241, 0.35);
+  .s3-status .stat .label {
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #546e7a;
+    margin-bottom: 0.25rem;
   }
 
-  .s3-status table tbody tr:hover {
-    background-color: rgba(207, 216, 220, 0.35);
-  }
-
-  .s3-status table tbody td {
-    font-size: 0.9rem;
-    color: #37474f;
-  }
-
-  .s3-status td code,
-  .s3-status td .mono {
-    word-break: break-all;
-    font-family: "Roboto Mono", "Source Code Pro", monospace;
-    font-size: 0.85rem;
-    color: var(--s3-heading);
+  .s3-status .stat .value {
+    font-weight: 600;
+    color: #263238;
+    word-break: break-word;
   }
 
   .s3-status .mono {
     font-family: "Roboto Mono", "Source Code Pro", monospace;
   }
 
-  .s3-status td code {
-    background-color: rgba(207, 216, 220, 0.35);
-    padding: 0.2rem 0.35rem;
-    border-radius: 4px;
-    display: inline-block;
+  .s3-status .download-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+
+  .s3-status .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .s3-status table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  .s3-status thead th {
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    font-size: 0.75rem;
+    color: #546e7a;
+    background: #eceff1;
+  }
+
+  .s3-status th,
+  .s3-status td {
+    padding: 0.75rem 0.9rem;
+  }
+
+  .s3-status tbody tr:nth-child(even) {
+    background: #f7f9fa;
+  }
+
+  .s3-status tbody td {
+    color: #37474f;
+    font-size: 0.9rem;
   }
 
   .s3-status .truncate {
-    display: inline-flex;
-    align-items: center;
+    display: inline-block;
     max-width: 100%;
-  }
-
-  .s3-status .inline-form {
-    display: inline-flex;
-    align-items: center;
-  }
-
-  .s3-status .inline-form .action-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 10px;
-    border: none;
-    background: #d32f2f;
-    color: #fff;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 150ms ease, box-shadow 150ms ease, transform 150ms ease;
-    cursor: pointer;
-  }
-
-  .s3-status .inline-form .action-btn .material-icons {
-    font-size: 1.15rem;
-  }
-
-  .s3-status .inline-form .action-btn:hover,
-  .s3-status .inline-form .action-btn:focus {
-    background: #b71c1c;
-    box-shadow: 0 4px 12px rgba(183, 28, 28, 0.35);
-    transform: translateY(-1px);
-  }
-
-  .s3-status .inline-form .action-btn:focus-visible {
-    outline: 2px solid #ffcdd2;
-    outline-offset: 2px;
-  }
-
-  .s3-status th.right-align,
-  .s3-status td.right-align {
-    text-align: right;
-  }
-
-  .s3-status .sr-only {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
+    white-space: nowrap;
     overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    border: 0;
+    text-overflow: ellipsis;
   }
 
-  @media (max-width: 720px) {
+  .s3-status .actions {
+    text-align: right;
+    white-space: nowrap;
+  }
+
+  .s3-status .actions form {
+    display: inline;
+  }
+
+  @media (max-width: 600px) {
     .s3-status .card-content {
-      padding: 1.5rem;
+      padding: 1.5rem 1.25rem;
     }
 
-    .s3-status .status-meta {
-      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-    }
-
-    .s3-status .section-block {
-      padding: 1.1rem 1.2rem;
-    }
-
-    .s3-status .table-wrapper {
-      margin: 0 -1rem;
-      padding: 0 1rem;
-      overflow-x: auto;
-    }
-
-    .s3-status table {
-      min-width: 520px;
-    }
-
-    .s3-status table td,
-    .s3-status table th {
-      padding: 0.75rem 0.85rem;
-      word-break: break-word;
-    }
-
-    .s3-status table td .truncate {
-      max-width: 240px;
-      white-space: normal;
-      text-overflow: clip;
+    .s3-status .stat-grid {
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
     }
   }
 </style>
@@ -320,50 +163,46 @@ WEB_STATUS_TEMPLATE = """
 
   <div class="card">
     <div class="card-content">
-      <h2 class="card-title">Status Overview</h2>
-      <div class="section-block">
-        <h3 class="section-heading">Summary</h3>
-        <div class="status-meta">
-          <div class="status-chip">
-            <span class="label">Status file</span>
-            <span class="value mono">{{ status_path }}</span>
-          </div>
-          <div class="status-chip">
-            <span class="label">Exists</span>
-            <span class="value">{{ 'Yes' if status_exists else 'No' }}</span>
-          </div>
-          <div class="status-chip">
-            <span class="label">Last updated</span>
-            <span class="value">{{ status_mtime or 'Never' }}</span>
-          </div>
-          <div class="status-chip">
-            <span class="label">Total uploaded (unique)</span>
-            <span class="value">{{ status_summary.total_uploaded }}</span>
-          </div>
-          <div class="status-chip">
-            <span class="label">Last upload</span>
-            <span class="value">{{ status_summary.last_upload }}</span>
-          </div>
-          <div class="status-chip">
-            <span class="label">Total handshakes found</span>
-            <span class="value">{{ status_summary.total_handshakes }}</span>
-          </div>
-          <div class="status-chip">
-            <span class="label">Pending uploads</span>
-            <span class="value">{{ status_summary.pending_count }}</span>
-          </div>
-          <div class="status-chip">
-            <span class="label">Tracked records</span>
-            <span class="value">{{ uploaded_records|length }}</span>
-          </div>
+      <span class="card-title">Status Overview</span>
+      <div class="stat-grid">
+        <div class="stat">
+          <span class="label">Status file</span>
+          <span class="value mono">{{ status_path }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Exists</span>
+          <span class="value">{{ 'Yes' if status_exists else 'No' }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Last updated</span>
+          <span class="value">{{ status_mtime or 'Never' }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Total uploaded</span>
+          <span class="value">{{ status_summary.total_uploaded }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Last upload</span>
+          <span class="value">{{ status_summary.last_upload }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Handshakes found</span>
+          <span class="value">{{ status_summary.total_handshakes }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Pending uploads</span>
+          <span class="value">{{ status_summary.pending_count }}</span>
+        </div>
+        <div class="stat">
+          <span class="label">Tracked records</span>
+          <span class="value">{{ uploaded_records|length }}</span>
         </div>
       </div>
-      <div class="section-block">
-        <h3 class="section-heading">Status JSON</h3>
-        <p class="section-text">Download the latest status snapshot to inspect the raw records.</p>
-        <a href="{{ status_download_url }}" class="download-link" download>
-          <i class="material-icons" aria-hidden="true">download</i>
-          <span>Download status JSON</span>
+      <div class="download-actions">
+        <span class="grey-text text-darken-1">Latest status snapshot:</span>
+        <a href="{{ status_download_url }}" class="btn-small blue darken-2 waves-effect waves-light" download>
+          <i class="material-icons left" aria-hidden="true">download</i>
+          Download JSON
         </a>
       </div>
     </div>
@@ -371,52 +210,46 @@ WEB_STATUS_TEMPLATE = """
 
   <div class="card">
     <div class="card-content">
-      <h2 class="card-title">Tracked Uploads</h2>
+      <span class="card-title">Tracked Uploads</span>
       {% if uploaded_records %}
-      <div class="section-block">
-        <h3 class="section-heading">Records</h3>
-        <div class="table-wrapper">
-          <table class="responsive-table striped highlight">
-            <thead>
-              <tr>
-                <th scope="col">File</th>
-                <th scope="col">Checksum</th>
-                <th scope="col">Size</th>
-                <th scope="col">Uploaded</th>
-                <th scope="col">Last Updated</th>
-                <th scope="col" class="right-align">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for record in uploaded_records %}
-              <tr>
-                <td data-label="File"><span class="truncate mono">{{ record.display_path }}</span></td>
-                <td data-label="Checksum"><code>{{ record.display_checksum }}</code></td>
-                <td data-label="Size">{{ record.display_size }}</td>
-                <td data-label="Uploaded">{{ record.uploaded_at }}</td>
-                <td data-label="Last Updated">{{ record.updated_at }}</td>
-                <td data-label="Actions" class="right-align">
-                  <form method="post" action="{{ page_url }}" class="inline-form">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="clear">
-                    <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
-                    <button type="submit" class="action-btn waves-effect" title="Clear this record">
-                      <i class="material-icons" aria-hidden="true">delete</i>
-                      <span class="sr-only">Clear this record</span>
-                    </button>
-                  </form>
-                </td>
-              </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
+      <div class="table-wrapper">
+        <table class="highlight responsive-table">
+          <thead>
+            <tr>
+              <th scope="col">File</th>
+              <th scope="col">Checksum</th>
+              <th scope="col">Size</th>
+              <th scope="col">Uploaded</th>
+              <th scope="col">Updated</th>
+              <th scope="col" class="actions">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in uploaded_records %}
+            <tr>
+              <td data-label="File"><span class="truncate mono">{{ record.display_path }}</span></td>
+              <td data-label="Checksum"><span class="mono">{{ record.display_checksum }}</span></td>
+              <td data-label="Size">{{ record.display_size }}</td>
+              <td data-label="Uploaded">{{ record.uploaded_at }}</td>
+              <td data-label="Updated">{{ record.updated_at }}</td>
+              <td data-label="Action" class="actions">
+                <form method="post" action="{{ page_url }}">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="clear">
+                  <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
+                  <button type="submit" class="btn-small red waves-effect waves-light">
+                    <i class="material-icons left" aria-hidden="true">delete</i>
+                    Clear
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
       {% else %}
-      <div class="section-block">
-        <h3 class="section-heading">Records</h3>
-        <p class="section-text">No upload records available.</p>
-      </div>
+      <p class="grey-text text-darken-1">No upload records available.</p>
       {% endif %}
     </div>
   </div>
