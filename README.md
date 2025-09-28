@@ -15,16 +15,20 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 - bt-tether - Slightly edited bt-tether for network route metric settings
 - s3_upload - Uploads all handshakes, geojson, potfiles, and hash files to S3 Minio Endpoint on internet connection
 
+## Companion Apps
+
+- [pwnios](https://github.com/BraedenP232/pwnios)
+
 ## Current Repo List of Plugins
 
 ```
 main.custom_plugin_repos = [
-    "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
-    "https://github.com/tisboyo/pwnagotchi-pisugar2-plugin/archive/master.zip",
-    "https://github.com/nullm0ose/pwnagotchi-plugin-pisugar3/archive/master.zip",
-    "https://github.com/Sniffleupagus/pwnagotchi_plugins/archive/master.zip",
-    "https://github.com/NeonLightning/pwny/archive/master.zip",
-    "https://github.com/BraedenP232/pwnios/archive/main.zip",
+ "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
+ "https://github.com/Sniffleupagus/pwnagotchi_plugins/archive/master.zip",
+ "https://github.com/NeonLightning/pwny/archive/master.zip",
+ "https://github.com/marbasec/UPSLite_Plugin_1_3/archive/master.zip",
+ "https://github.com/wpa-2/Pwnagotchi-Plugins/archive/master.zip",
+ "https://github.com/BraedenP232/pwnios/archive/main.zip",
 ]
 ```
 
