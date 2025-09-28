@@ -170,30 +170,35 @@ WEB_STATUS_TEMPLATE = """
   }
 
   .s3-status .inline-form .action-btn {
-    padding: 0;
-    width: 2.5rem;
-    height: 2.5rem;
-    border-radius: 999px;
+    padding: 0.45rem 0.95rem;
+    border-radius: 6px;
     border: none;
     background: #e53935;
     color: #fff;
     display: inline-flex;
     align-items: center;
-    justify-content: center;
+    gap: 0.4rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
     transition: background-color 150ms ease, box-shadow 150ms ease;
-    box-shadow: 0 2px 4px rgba(229, 57, 53, 0.3);
+    box-shadow: 0 2px 4px rgba(229, 57, 53, 0.25);
     cursor: pointer;
   }
 
   .s3-status .inline-form .action-btn:hover,
   .s3-status .inline-form .action-btn:focus {
     background: #c62828;
-    box-shadow: 0 4px 8px rgba(198, 40, 40, 0.35);
+    box-shadow: 0 4px 10px rgba(198, 40, 40, 0.35);
   }
 
   .s3-status .inline-form .action-btn i {
-    font-size: 1.25rem;
+    font-size: 1.15rem;
     color: inherit;
+  }
+
+  .s3-status .inline-form .action-btn .label {
+    font-size: 0.78rem;
   }
 
   .s3-status th.right-align,
@@ -202,64 +207,30 @@ WEB_STATUS_TEMPLATE = """
   }
 
   @media (max-width: 720px) {
+    .s3-status .status-meta {
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    }
+
     .s3-status .table-wrapper {
-      overflow: visible;
+      margin: 0 -1rem;
+      padding: 0 1rem;
+      overflow-x: auto;
     }
 
-    .s3-status table,
-    .s3-status thead,
-    .s3-status tbody,
-    .s3-status th,
-    .s3-status td,
-    .s3-status tr {
-      display: block;
+    .s3-status table {
+      min-width: 520px;
     }
 
-    .s3-status thead tr {
-      display: none;
+    .s3-status table td,
+    .s3-status table th {
+      padding: 0.75rem 0.85rem;
+      word-break: break-word;
     }
 
-    .s3-status tr {
-      margin-bottom: 1.2rem;
-      border: 1px solid rgba(176, 190, 197, 0.6);
-      border-radius: 6px;
-      padding: 0.75rem;
-    }
-
-    .s3-status td {
-      border: none;
-      position: relative;
-      padding-left: 45%;
-      min-height: 2.5rem;
-    }
-
-    .s3-status td::before {
-      content: attr(data-label);
-      position: absolute;
-      left: 0.9rem;
-      width: 42%;
-      font-weight: 600;
-      color: #546e7a;
-      text-transform: uppercase;
-      font-size: 0.7rem;
-      letter-spacing: 0.08em;
-    }
-
-    .s3-status td[data-label="Actions"] {
-      padding-left: 1rem;
-    }
-
-    .s3-status td[data-label="Actions"]::before {
-      display: none;
-    }
-
-    .s3-status .inline-form {
-      justify-content: flex-end;
-    }
-
-    .s3-status .inline-form button {
-      width: 2.5rem;
-      height: 2.5rem;
+    .s3-status table td .truncate {
+      max-width: 240px;
+      white-space: normal;
+      text-overflow: clip;
     }
   }
 </style>
@@ -347,6 +318,7 @@ WEB_STATUS_TEMPLATE = """
                   <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
                   <button type="submit" class="action-btn waves-effect waves-light" title="Remove this record" aria-label="Remove this record">
                     <i class="material-icons" aria-hidden="true">delete</i>
+                    <span class="label">Clear</span>
                   </button>
                 </form>
               </td>
