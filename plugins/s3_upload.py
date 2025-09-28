@@ -36,31 +36,54 @@ WEB_STATUS_TEMPLATE = """
 {% block title %}S3 Upload Status{% endblock %}
 
 {% block content %}
-<div class="row">
-  <div class="col s12 m6">
-    <div class="card">
-      <div class="card-content">
-        <span class="card-title">Status Overview</span>
-        <p><strong>Status file:</strong> {{ status_path }}</p>
-        <p><strong>Exists:</strong> {{ 'Yes' if status_exists else 'No' }}</p>
-        <p><strong>Last updated:</strong> {{ status_mtime or 'Never' }}</p>
-        <p><strong>Total uploaded:</strong> {{ status_summary.total_uploaded }}</p>
-        <p><strong>Last upload:</strong> {{ status_summary.last_upload }}</p>
-      </div>
-    </div>
+{% if feedback %}
+<div class="card-panel {{ 'green lighten-5' if feedback.category == 'success' else 'red lighten-5' }}">
+  <span class="{{ 'green-text text-darken-4' if feedback.category == 'success' else 'red-text text-darken-4' }}">{{ feedback.message }}</span>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-content">
+    <span class="card-title">Status Overview</span>
+    <table class="striped">
+      <tbody>
+        <tr>
+          <th scope="row">Status file</th>
+          <td>{{ status_path }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Exists</th>
+          <td>{{ 'Yes' if status_exists else 'No' }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Last updated</th>
+          <td>{{ status_mtime or 'Never' }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Total uploaded (unique)</th>
+          <td>{{ status_summary.total_uploaded }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Last upload</th>
+          <td>{{ status_summary.last_upload }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Total handshakes found</th>
+          <td>{{ status_summary.total_handshakes }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Pending uploads</th>
+          <td>{{ status_summary.pending_count }}</td>
+        </tr>
+        <tr>
+          <th scope="row">Tracked records</th>
+          <td>{{ uploaded_records|length }}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
-  <div class="col s12 m6">
-    <div class="card">
-      <div class="card-content">
-        <span class="card-title">Pending Summary</span>
-        <p><strong>Total handshakes:</strong> {{ status_summary.total_handshakes }}</p>
-        <p><strong>Pending uploads:</strong> {{ status_summary.pending_count }}</p>
-        <p><strong>Uploaded entries tracked:</strong> {{ uploaded_records|length }}</p>
-      </div>
-      <div class="card-action">
-        <a href="{{ raw_status_url }}" target="_blank">View raw status JSON</a>
-      </div>
-    </div>
+  <div class="card-action">
+    <a href="{{ status_download_url }}" class="btn" download>Download status JSON</a>
   </div>
 </div>
 
@@ -68,36 +91,43 @@ WEB_STATUS_TEMPLATE = """
   <div class="card-content">
     <span class="card-title">Tracked Uploads</span>
     {% if uploaded_records %}
-    <table class="striped responsive-table">
-      <thead>
-        <tr>
-          <th>File</th>
-          <th>Checksum</th>
-          <th>Uploaded At</th>
-          <th>Updated At</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for record in uploaded_records %}
-        <tr>
-          <td>{{ record.path or record.filename }}</td>
-          <td><code>{{ record.checksum or 'n/a' }}</code></td>
-          <td>{{ record.uploaded_at or 'n/a' }}</td>
-          <td>{{ record.updated_at or record.uploaded_at or 'n/a' }}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="table-responsive">
+      <table class="striped responsive-table">
+        <thead>
+          <tr>
+            <th>File</th>
+            <th>Checksum</th>
+            <th>Size</th>
+            <th>Uploaded</th>
+            <th>Last Updated</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for record in uploaded_records %}
+          <tr>
+            <td>{{ record.display_path }}</td>
+            <td><code>{{ record.display_checksum }}</code></td>
+            <td>{{ record.display_size }}</td>
+            <td>{{ record.uploaded_at }}</td>
+            <td>{{ record.updated_at }}</td>
+            <td>
+              <form method="post" action="{{ page_url }}" style="display:inline">
+                <input type="hidden" name="action" value="clear">
+                <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
+                <button type="submit" class="btn-flat waves-effect red-text text-accent-4" title="Remove this record">
+                  Clear
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
     {% else %}
     <p>No upload records available.</p>
     {% endif %}
-  </div>
-</div>
-
-<div class="card">
-  <div class="card-content">
-    <span class="card-title">Raw Status Data</span>
-    <pre style="white-space: pre-wrap">{{ status_json }}</pre>
   </div>
 </div>
 {% endblock %}
@@ -546,6 +576,24 @@ class PwnS3Upload(plugins.Plugin):
             return None
         return sha256.hexdigest()
 
+    @staticmethod
+    def _format_size(num_bytes):
+        """Return a human readable string for a byte count."""
+        if not isinstance(num_bytes, (int, float)) or num_bytes < 0:
+            return 'n/a'
+
+        units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB']
+        size = float(num_bytes)
+        unit_index = 0
+        while size >= 1024 and unit_index < len(units) - 1:
+            size /= 1024.0
+            unit_index += 1
+
+        if unit_index == 0:
+            return f"{int(size)} {units[unit_index]}"
+
+        return f"{size:.2f} {units[unit_index]}"
+
     def track_uploaded_file(self, relative_path, checksum):
         """Record a successfully uploaded file using its checksum."""
         if not relative_path and not checksum:
@@ -597,6 +645,59 @@ class PwnS3Upload(plugins.Plugin):
             f"Recorded upload for {relative_path} "
             f"({'checksum ' + checksum if checksum else 'no checksum'})"
         )
+
+    def clear_uploaded_record(self, identifier):
+        """Remove a tracked upload entry by checksum or path."""
+        if not identifier:
+            return False
+
+        with self.lock:
+            self._refresh_status_data_from_disk()
+            records = self.get_uploaded_records()
+            retained_records = []
+            removed = False
+            removed_paths = set()
+
+            for record in records:
+                record_identifiers = {
+                    record.get('checksum'),
+                    record.get('path'),
+                    record.get('filename')
+                }
+                if identifier in record_identifiers:
+                    removed = True
+                    record_path = record.get('path') or record.get('filename')
+                    if record_path:
+                        removed_paths.add(record_path)
+                    continue
+                retained_records.append(record)
+
+            if not removed:
+                return False
+
+            identifiers = [
+                item.get('checksum') or item.get('path') or item.get('filename')
+                for item in retained_records
+                if item.get('checksum') or item.get('path') or item.get('filename')
+            ]
+            total_unique = len(set(identifiers))
+
+            updates = {
+                'uploaded_files': retained_records,
+                'total_uploaded': total_unique
+            }
+
+            if removed_paths:
+                cache = dict(self._checksum_cache) if self._checksum_cache else {}
+                cache_modified = False
+                for path in removed_paths:
+                    if cache.pop(path, None) is not None:
+                        cache_modified = True
+                if cache_modified:
+                    updates['checksum_cache'] = cache
+
+            self._update_status_data(updates)
+            return True
 
     # Get list of files that need to be uploaded
     def collect_pending_uploads(self):
@@ -789,6 +890,33 @@ class PwnS3Upload(plugins.Plugin):
         normalized_path = (path or '').strip('/')
 
         if normalized_path in {'', None}:
+            feedback = None
+            if request.method == 'POST':
+                action = request.form.get('action') if request.form else None
+                if action == 'clear':
+                    identifier = (request.form.get('identifier') or '').strip()
+                    if identifier:
+                        if self.clear_uploaded_record(identifier):
+                            feedback = {
+                                'category': 'success',
+                                'message': f"Removed tracked entry for '{identifier}'."
+                            }
+                        else:
+                            feedback = {
+                                'category': 'error',
+                                'message': f"No tracked entry matched '{identifier}'."
+                            }
+                    else:
+                        feedback = {
+                            'category': 'error',
+                            'message': 'Unable to clear entry without an identifier.'
+                        }
+                else:
+                    feedback = {
+                        'category': 'error',
+                        'message': 'Unsupported action requested.'
+                    }
+
             self._refresh_status_data_from_disk()
             uploaded_records = self.get_uploaded_records()
 
@@ -818,10 +946,22 @@ class PwnS3Upload(plugins.Plugin):
                 except OSError:
                     status_mtime = None
 
-            status_data = dict(self._status_data)
-            status_json = json.dumps(status_data, indent=2, sort_keys=True)
             plugin_name = self.__module__.split('.')[-1]
-            raw_status_url = url_for('plugins', name=plugin_name, subpath='status.json')
+            page_url = url_for('plugins', name=plugin_name)
+            status_download_url = url_for('plugins', name=plugin_name, subpath='status.json')
+
+            display_records = []
+            for record in uploaded_records:
+                identifier = record.get('checksum') or record.get('path') or record.get('filename')
+                display_path = record.get('path') or record.get('filename') or 'n/a'
+                display_records.append({
+                    'display_path': display_path,
+                    'display_checksum': record.get('checksum') or 'n/a',
+                    'display_size': self._format_size(record.get('size')),
+                    'uploaded_at': record.get('uploaded_at') or 'n/a',
+                    'updated_at': record.get('updated_at') or record.get('uploaded_at') or 'n/a',
+                    'clear_identifier': identifier or '',
+                })
 
             return render_template_string(
                 WEB_STATUS_TEMPLATE,
@@ -829,17 +969,20 @@ class PwnS3Upload(plugins.Plugin):
                 status_exists=status_exists,
                 status_mtime=status_mtime,
                 status_summary=summary,
-                uploaded_records=uploaded_records,
-                status_json=status_json,
-                raw_status_url=raw_status_url
+                uploaded_records=display_records,
+                status_download_url=status_download_url,
+                page_url=page_url,
+                feedback=feedback
             )
 
         if normalized_path == 'status.json':
             self._refresh_status_data_from_disk()
-            return Response(
+            response = Response(
                 json.dumps(self._status_data, indent=2, sort_keys=True),
                 mimetype='application/json'
             )
+            response.headers['Content-Disposition'] = 'attachment; filename="s3_upload_status.json"'
+            return response
 
         abort(404)
     
