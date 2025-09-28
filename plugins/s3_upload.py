@@ -90,12 +90,10 @@ WEB_STATUS_TEMPLATE = """
     justify-content: flex-end;
   }
 
-  .s3-status .card-action .btn {
-    background-color: #455a64;
-  }
-
-  .s3-status .card-action .btn:hover {
-    background-color: #37474f;
+  .s3-status .card-action a {
+    color: #1a237e;
+    text-decoration: underline;
+    font-weight: 500;
   }
 
   .s3-status .table-wrapper {
@@ -170,35 +168,26 @@ WEB_STATUS_TEMPLATE = """
   }
 
   .s3-status .inline-form .action-btn {
-    padding: 0.45rem 0.95rem;
-    border-radius: 6px;
-    border: none;
-    background: #e53935;
-    color: #fff;
+    padding: 0.4rem 0.95rem;
+    border-radius: 4px;
+    border: 1px solid #d32f2f;
+    background: #fff;
+    color: #d32f2f;
     display: inline-flex;
     align-items: center;
-    gap: 0.4rem;
+    justify-content: center;
     font-weight: 600;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    transition: background-color 150ms ease, box-shadow 150ms ease;
-    box-shadow: 0 2px 4px rgba(229, 57, 53, 0.25);
+    letter-spacing: 0.01em;
+    text-transform: none;
+    transition: background-color 150ms ease, color 150ms ease, box-shadow 150ms ease;
     cursor: pointer;
   }
 
   .s3-status .inline-form .action-btn:hover,
   .s3-status .inline-form .action-btn:focus {
-    background: #c62828;
-    box-shadow: 0 4px 10px rgba(198, 40, 40, 0.35);
-  }
-
-  .s3-status .inline-form .action-btn i {
-    font-size: 1.15rem;
-    color: inherit;
-  }
-
-  .s3-status .inline-form .action-btn .label {
-    font-size: 0.78rem;
+    background: #d32f2f;
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(211, 47, 47, 0.35);
   }
 
   .s3-status th.right-align,
@@ -283,7 +272,7 @@ WEB_STATUS_TEMPLATE = """
       </div>
     </div>
     <div class="card-action">
-      <a href="{{ status_download_url }}" class="btn" download>Download status JSON</a>
+      <a href="{{ status_download_url }}" download>Download status JSON</a>
     </div>
   </div>
 
@@ -316,10 +305,7 @@ WEB_STATUS_TEMPLATE = """
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="action" value="clear">
                   <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
-                  <button type="submit" class="action-btn waves-effect waves-light" title="Remove this record" aria-label="Remove this record">
-                    <i class="material-icons" aria-hidden="true">delete</i>
-                    <span class="label">Clear</span>
-                  </button>
+                  <button type="submit" class="action-btn waves-effect" title="Clear this record" aria-label="Clear this record">Clear</button>
                 </form>
               </td>
             </tr>
