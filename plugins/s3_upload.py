@@ -20,6 +20,12 @@ from pwnagotchi.utils import StatusFile
 from json import JSONDecodeError
 from flask import abort, render_template_string, Response, url_for
 
+try:
+    from flask_wtf.csrf import generate_csrf
+except ImportError:  # pragma: no cover - fallback when csrf extension unavailable
+    def generate_csrf():
+        return ''
+
 # Try to import boto3, install if not available
 try:
     import boto3
@@ -35,99 +41,206 @@ WEB_STATUS_TEMPLATE = """
 {% set active_page = "plugins" %}
 {% block title %}S3 Upload Status{% endblock %}
 
+{% block styles %}
+{{ super() }}
+<style>
+  .s3-status .status-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .s3-status .status-chip {
+    background: rgba(236, 239, 241, 0.6);
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+    line-height: 1.4;
+  }
+
+  .s3-status .status-chip .label {
+    text-transform: uppercase;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    color: #607d8b;
+    display: block;
+    margin-bottom: 0.35rem;
+  }
+
+  .s3-status .status-chip .value {
+    font-weight: 600;
+    word-break: break-word;
+  }
+
+  .s3-status .table-wrapper {
+    overflow-x: auto;
+  }
+
+  .s3-status table {
+    min-width: 680px;
+  }
+
+  .s3-status td code {
+    word-break: break-all;
+  }
+
+  .s3-status .truncate {
+    display: inline-block;
+    max-width: 100%;
+  }
+
+  @media (max-width: 720px) {
+    .s3-status .table-wrapper {
+      overflow-x: visible;
+    }
+
+    .s3-status table,
+    .s3-status thead,
+    .s3-status tbody,
+    .s3-status th,
+    .s3-status td,
+    .s3-status tr {
+      display: block;
+    }
+
+    .s3-status thead tr {
+      display: none;
+    }
+
+    .s3-status tr {
+      margin-bottom: 1.2rem;
+      border: 1px solid rgba(176, 190, 197, 0.6);
+      border-radius: 6px;
+      padding: 0.75rem;
+    }
+
+    .s3-status td {
+      border: none;
+      position: relative;
+      padding-left: 45%;
+      min-height: 2rem;
+    }
+
+    .s3-status td::before {
+      content: attr(data-label);
+      position: absolute;
+      left: 0.75rem;
+      width: 40%;
+      font-weight: 600;
+      color: #546e7a;
+      text-transform: uppercase;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+    }
+
+    .s3-status td[data-label="Actions"] {
+      padding-left: 1rem;
+    }
+
+    .s3-status td[data-label="Actions"]::before {
+      display: none;
+    }
+
+    .s3-status form {
+      text-align: right;
+    }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-{% if feedback %}
-<div class="card-panel {{ 'green lighten-5' if feedback.category == 'success' else 'red lighten-5' }}">
-  <span class="{{ 'green-text text-darken-4' if feedback.category == 'success' else 'red-text text-darken-4' }}">{{ feedback.message }}</span>
-</div>
-{% endif %}
-
-<div class="card">
-  <div class="card-content">
-    <span class="card-title">Status Overview</span>
-    <table class="striped">
-      <tbody>
-        <tr>
-          <th scope="row">Status file</th>
-          <td>{{ status_path }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Exists</th>
-          <td>{{ 'Yes' if status_exists else 'No' }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Last updated</th>
-          <td>{{ status_mtime or 'Never' }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Total uploaded (unique)</th>
-          <td>{{ status_summary.total_uploaded }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Last upload</th>
-          <td>{{ status_summary.last_upload }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Total handshakes found</th>
-          <td>{{ status_summary.total_handshakes }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Pending uploads</th>
-          <td>{{ status_summary.pending_count }}</td>
-        </tr>
-        <tr>
-          <th scope="row">Tracked records</th>
-          <td>{{ uploaded_records|length }}</td>
-        </tr>
-      </tbody>
-    </table>
+<div class="s3-status">
+  {% if feedback %}
+  <div class="card-panel {{ 'green lighten-5' if feedback.category == 'success' else 'red lighten-5' }}">
+    <span class="{{ 'green-text text-darken-4' if feedback.category == 'success' else 'red-text text-darken-4' }}">{{ feedback.message }}</span>
   </div>
-  <div class="card-action">
-    <a href="{{ status_download_url }}" class="btn" download>Download status JSON</a>
-  </div>
-</div>
+  {% endif %}
 
-<div class="card">
-  <div class="card-content">
-    <span class="card-title">Tracked Uploads</span>
-    {% if uploaded_records %}
-    <div class="table-responsive">
-      <table class="striped responsive-table">
-        <thead>
-          <tr>
-            <th>File</th>
-            <th>Checksum</th>
-            <th>Size</th>
-            <th>Uploaded</th>
-            <th>Last Updated</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for record in uploaded_records %}
-          <tr>
-            <td>{{ record.display_path }}</td>
-            <td><code>{{ record.display_checksum }}</code></td>
-            <td>{{ record.display_size }}</td>
-            <td>{{ record.uploaded_at }}</td>
-            <td>{{ record.updated_at }}</td>
-            <td>
-              <form method="post" action="{{ page_url }}" style="display:inline">
-                <input type="hidden" name="action" value="clear">
-                <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
-                <button type="submit" class="btn-flat waves-effect red-text text-accent-4" title="Remove this record">
-                  Clear
-                </button>
-              </form>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
+  <div class="card">
+    <div class="card-content">
+      <span class="card-title">Status Overview</span>
+      <div class="status-meta">
+        <div class="status-chip">
+          <span class="label">Status file</span>
+          <span class="value">{{ status_path }}</span>
+        </div>
+        <div class="status-chip">
+          <span class="label">Exists</span>
+          <span class="value">{{ 'Yes' if status_exists else 'No' }}</span>
+        </div>
+        <div class="status-chip">
+          <span class="label">Last updated</span>
+          <span class="value">{{ status_mtime or 'Never' }}</span>
+        </div>
+        <div class="status-chip">
+          <span class="label">Total uploaded (unique)</span>
+          <span class="value">{{ status_summary.total_uploaded }}</span>
+        </div>
+        <div class="status-chip">
+          <span class="label">Last upload</span>
+          <span class="value">{{ status_summary.last_upload }}</span>
+        </div>
+        <div class="status-chip">
+          <span class="label">Total handshakes found</span>
+          <span class="value">{{ status_summary.total_handshakes }}</span>
+        </div>
+        <div class="status-chip">
+          <span class="label">Pending uploads</span>
+          <span class="value">{{ status_summary.pending_count }}</span>
+        </div>
+        <div class="status-chip">
+          <span class="label">Tracked records</span>
+          <span class="value">{{ uploaded_records|length }}</span>
+        </div>
+      </div>
     </div>
-    {% else %}
-    <p>No upload records available.</p>
-    {% endif %}
+    <div class="card-action">
+      <a href="{{ status_download_url }}" class="btn" download>Download status JSON</a>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-content">
+      <span class="card-title">Tracked Uploads</span>
+      {% if uploaded_records %}
+      <div class="table-wrapper">
+        <table class="striped highlight">
+          <thead>
+            <tr>
+              <th scope="col">File</th>
+              <th scope="col">Checksum</th>
+              <th scope="col">Size</th>
+              <th scope="col">Uploaded</th>
+              <th scope="col">Last Updated</th>
+              <th scope="col" class="right-align">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for record in uploaded_records %}
+            <tr>
+              <td data-label="File"><span class="truncate">{{ record.display_path }}</span></td>
+              <td data-label="Checksum"><code>{{ record.display_checksum }}</code></td>
+              <td data-label="Size">{{ record.display_size }}</td>
+              <td data-label="Uploaded">{{ record.uploaded_at }}</td>
+              <td data-label="Last Updated">{{ record.updated_at }}</td>
+              <td data-label="Actions" class="right-align">
+                <form method="post" action="{{ page_url }}" class="inline-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                  <input type="hidden" name="action" value="clear">
+                  <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
+                  <button type="submit" class="btn-flat waves-effect red-text text-accent-4" title="Remove this record">
+                    Clear
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="grey-text text-darken-1">No upload records available.</p>
+      {% endif %}
+    </div>
   </div>
 </div>
 {% endblock %}
@@ -972,7 +1085,8 @@ class PwnS3Upload(plugins.Plugin):
                 uploaded_records=display_records,
                 status_download_url=status_download_url,
                 page_url=page_url,
-                feedback=feedback
+                feedback=feedback,
+                csrf_token=generate_csrf
             )
 
         if normalized_path == 'status.json':
