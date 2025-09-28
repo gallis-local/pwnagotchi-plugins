@@ -81,7 +81,8 @@ WEB_STATUS_TEMPLATE = """
     font-weight: 600;
     font-size: 0.95rem;
     word-break: break-word;
-    color: #1c313a;
+    color: #263238;
+    text-decoration: none;
   }
 
   .s3-status .card-action {
@@ -90,11 +91,11 @@ WEB_STATUS_TEMPLATE = """
   }
 
   .s3-status .card-action .btn {
-    background-color: #546e7a;
+    background-color: #455a64;
   }
 
   .s3-status .card-action .btn:hover {
-    background-color: #455a64;
+    background-color: #37474f;
   }
 
   .s3-status .table-wrapper {
@@ -146,6 +147,10 @@ WEB_STATUS_TEMPLATE = """
     color: #263238;
   }
 
+  .s3-status .mono {
+    font-family: "Roboto Mono", "Source Code Pro", monospace;
+  }
+
   .s3-status td code {
     background-color: rgba(207, 216, 220, 0.35);
     padding: 0.2rem 0.35rem;
@@ -164,20 +169,31 @@ WEB_STATUS_TEMPLATE = """
     align-items: center;
   }
 
-  .s3-status .inline-form button {
+  .s3-status .inline-form .action-btn {
     padding: 0;
-  }
-
-  .s3-status .inline-form button.icon-only {
     width: 2.5rem;
     height: 2.5rem;
     border-radius: 999px;
+    border: none;
+    background: #e53935;
+    color: #fff;
     display: inline-flex;
     align-items: center;
     justify-content: center;
+    transition: background-color 150ms ease, box-shadow 150ms ease;
+    box-shadow: 0 2px 4px rgba(229, 57, 53, 0.3);
+    cursor: pointer;
   }
-  .s3-status .inline-form button.icon-only i {
+
+  .s3-status .inline-form .action-btn:hover,
+  .s3-status .inline-form .action-btn:focus {
+    background: #c62828;
+    box-shadow: 0 4px 8px rgba(198, 40, 40, 0.35);
+  }
+
+  .s3-status .inline-form .action-btn i {
     font-size: 1.25rem;
+    color: inherit;
   }
 
   .s3-status th.right-align,
@@ -263,7 +279,7 @@ WEB_STATUS_TEMPLATE = """
       <div class="status-meta">
         <div class="status-chip">
           <span class="label">Status file</span>
-          <span class="value">{{ status_path }}</span>
+          <span class="value mono">{{ status_path }}</span>
         </div>
         <div class="status-chip">
           <span class="label">Exists</span>
@@ -329,7 +345,7 @@ WEB_STATUS_TEMPLATE = """
                   <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                   <input type="hidden" name="action" value="clear">
                   <input type="hidden" name="identifier" value="{{ record.clear_identifier }}">
-                  <button type="submit" class="btn-flat btn-small waves-effect waves-light red-text text-darken-2 icon-only" title="Remove this record" aria-label="Remove this record">
+                  <button type="submit" class="action-btn waves-effect waves-light" title="Remove this record" aria-label="Remove this record">
                     <i class="material-icons" aria-hidden="true">delete</i>
                   </button>
                 </form>
