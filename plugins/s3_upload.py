@@ -46,9 +46,11 @@ class PwnS3Upload(plugins.Plugin):
         self.lock = Lock()
 
         # In-memory checksum cache to avoid recomputing hashes repeatedly
-        self._checksum_cache = {}
-        # Ensure we recompute checksums once per boot to refresh cached values
-        self._initial_checksum_sync_done = False
+        persisted_cache = self.report.data_field_or('checksum_cache', default={})
+        if isinstance(persisted_cache, dict):
+            self._checksum_cache = dict(persisted_cache)
+        else:
+            self._checksum_cache = {}
         
         # Ensure boto3 dependencies are available
         self.ensure_dependencies()
@@ -453,19 +455,17 @@ class PwnS3Upload(plugins.Plugin):
         uploaded_checksums = self.get_uploaded_checksums()
         uploaded_paths = self.get_uploaded_paths()
 
-        checksum_cache = self._checksum_cache or self.report.data_field_or('checksum_cache', default={})
-        if not isinstance(checksum_cache, dict):
-            checksum_cache = {}
+        checksum_cache = self._checksum_cache
+        if not checksum_cache:
+            checksum_cache = self.report.data_field_or('checksum_cache', default={})
+            if not isinstance(checksum_cache, dict):
+                checksum_cache = {}
+        else:
+            checksum_cache = dict(checksum_cache)
 
         updated_cache = {}
         pending_files = []
         scanned_file_count = 0
-
-        # Force a full checksum pass the first time we scan after boot so that
-        # any stale cache entries from previous runs are refreshed. Subsequent
-        # scans can rely on the cached metadata to avoid rehashing unchanged
-        # files.
-        force_full_checksum = not self._initial_checksum_sync_done
 
         for root, dirs, files in os.walk(handshakes_dir):
             dirs.sort()
@@ -500,7 +500,7 @@ class PwnS3Upload(plugins.Plugin):
                     and cache_entry.get('mtime_ns') == mtime_ns
                 )
 
-                if not force_full_checksum and metadata_matches:
+                if metadata_matches and cache_entry.get('checksum'):
                     checksum = cache_entry.get('checksum')
                 else:
                     checksum = self.get_file_checksum(file_path)
@@ -537,9 +537,6 @@ class PwnS3Upload(plugins.Plugin):
             self._checksum_cache = updated_cache
         else:
             self._checksum_cache = checksum_cache
-
-        if force_full_checksum:
-            self._initial_checksum_sync_done = True
 
         pending_files.sort(key=lambda item: (item.get('mtime_ns') or 0, item['path']))
         self.LogDebug(
