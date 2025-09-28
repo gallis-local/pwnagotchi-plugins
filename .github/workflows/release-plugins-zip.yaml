@@ -26,6 +26,11 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+
+    - name: Install Zip utility
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y zip unzip
     
     - name: Determine version
       id: version
