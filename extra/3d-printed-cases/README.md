@@ -22,4 +22,4 @@
 * USB OTG Right Angle Adapter - https://www.amazon.com/dp/B07TX8FY6W?psc=1&ref=ppx_yo2ov_dt_b_product_details
 * 5GHz Compatible Wifi Usb Adapter (more work with higher power RPI4, these are just verified with the Zero W)
   * Mini - https://www.amazon.com/dp/B07C9TYDR4?psc=1&ref=ppx_yo2ov_dt_b_product_details
-  * Large - https://www.amazon.com/gp/product/B08BJS8FXD
+  * Large - https://a.co/d/9ufTQ6p
