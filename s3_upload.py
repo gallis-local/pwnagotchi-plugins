@@ -215,6 +215,35 @@ WEB_STATUS_TEMPLATE = """
     color: #37474f;
   }
 
+  .s3-status table thead th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 2rem;
+  }
+
+  .s3-status table thead th.sortable:hover {
+    background-color: rgba(207, 216, 220, 0.6);
+  }
+
+  .s3-status table thead th.sortable::after {
+    content: '⇅';
+    position: absolute;
+    right: 0.5rem;
+    opacity: 0.3;
+    font-size: 0.9rem;
+  }
+
+  .s3-status table thead th.sortable.asc::after {
+    content: '▲';
+    opacity: 1;
+  }
+
+  .s3-status table thead th.sortable.desc::after {
+    content: '▼';
+    opacity: 1;
+  }
+
   .s3-status td code,
   .s3-status td .mono {
     word-break: break-all;
@@ -494,11 +523,11 @@ WEB_STATUS_TEMPLATE = """
           <table class="responsive-table striped highlight">
             <thead>
               <tr>
-                <th scope="col">File</th>
-                <th scope="col">Checksum</th>
-                <th scope="col">Size</th>
-                <th scope="col">Uploaded</th>
-                <th scope="col">Last Updated</th>
+                <th scope="col" class="sortable">File</th>
+                <th scope="col" class="sortable">Checksum</th>
+                <th scope="col" class="sortable">Size</th>
+                <th scope="col" class="sortable">Uploaded</th>
+                <th scope="col" class="sortable">Last Updated</th>
                 <th scope="col" class="right-align">Actions</th>
               </tr>
             </thead>
@@ -540,6 +569,135 @@ WEB_STATUS_TEMPLATE = """
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+(function() {
+  'use strict';
+
+  // Table sorting functionality
+  function sortTable(table, column, direction) {
+    const tbody = table.querySelector('tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+
+    // Sort rows based on the column
+    rows.sort(function(a, b) {
+      const aCell = a.cells[column];
+      const bCell = b.cells[column];
+
+      if (!aCell || !bCell) return 0;
+
+      // Get text content, handling code/span elements
+      let aText = aCell.textContent.trim();
+      let bText = bCell.textContent.trim();
+
+      // Handle size column (convert to bytes for proper sorting)
+      if (column === 2) {
+        aText = convertSizeToBytes(aText);
+        bText = convertSizeToBytes(bText);
+        return direction === 'asc' ? aText - bText : bText - aText;
+      }
+
+      // Handle date columns (Uploaded and Last Updated)
+      if (column === 3 || column === 4) {
+        const aDate = parseDateString(aText);
+        const bDate = parseDateString(bText);
+        if (aDate && bDate) {
+          return direction === 'asc' ? aDate - bDate : bDate - aDate;
+        }
+      }
+
+      // Default string comparison
+      const comparison = aText.localeCompare(bText, undefined, { numeric: true, sensitivity: 'base' });
+      return direction === 'asc' ? comparison : -comparison;
+    });
+
+    // Remove existing rows and append sorted rows
+    rows.forEach(function(row) {
+      tbody.appendChild(row);
+    });
+  }
+
+  function convertSizeToBytes(sizeStr) {
+    if (sizeStr === 'n/a') return 0;
+
+    const units = { 'B': 1, 'KB': 1024, 'MB': 1024*1024, 'GB': 1024*1024*1024, 'TB': 1024*1024*1024*1024 };
+    const match = sizeStr.match(/^([\d.]+)\s*([A-Z]+)$/);
+
+    if (!match) return 0;
+
+    const value = parseFloat(match[1]);
+    const unit = match[2];
+
+    return value * (units[unit] || 1);
+  }
+
+  function parseDateString(dateStr) {
+    if (dateStr === 'n/a' || dateStr === 'Never') return null;
+
+    // Try parsing YYYY-MM-DD_HH-MM-SS format
+    const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})$/);
+    if (match) {
+      return new Date(
+        parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]),
+        parseInt(match[4]), parseInt(match[5]), parseInt(match[6])
+      );
+    }
+
+    // Fallback to standard Date parsing
+    const parsed = new Date(dateStr);
+    return isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  // Initialize sorting on page load
+  document.addEventListener('DOMContentLoaded', function() {
+    const table = document.querySelector('.s3-status table');
+    if (!table) return;
+
+    const headers = table.querySelectorAll('thead th.sortable');
+
+    headers.forEach(function(header, index) {
+      header.addEventListener('click', function() {
+        // Remove sort classes from other headers
+        headers.forEach(function(h) {
+          if (h !== header) {
+            h.classList.remove('asc', 'desc');
+          }
+        });
+
+        // Toggle sort direction
+        let direction = 'asc';
+        if (header.classList.contains('asc')) {
+          direction = 'desc';
+          header.classList.remove('asc');
+          header.classList.add('desc');
+        } else {
+          direction = 'asc';
+          header.classList.remove('desc');
+          header.classList.add('asc');
+        }
+
+        // Sort the table
+        sortTable(table, index, direction);
+      });
+
+      // Make headers keyboard accessible
+      header.setAttribute('tabindex', '0');
+      header.setAttribute('role', 'button');
+      header.setAttribute('aria-label', 'Sort by ' + header.textContent.trim());
+
+      header.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          header.click();
+        }
+      });
+    });
+  });
+})();
+</script>
 {% endblock %}
 """
 
