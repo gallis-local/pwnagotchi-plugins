@@ -1,0 +1,88 @@
+# WiFi Adapter Manager Plugin Configuration
+#
+# This plugin automatically detects external USB wireless adapters and manages
+# the integrated WiFi configuration in /boot/config.txt to prevent boot failures.
+
+# Enable the plugin
+main.plugins.wifi_adapter_manager.enabled = true
+
+# Operating mode: "auto", "manual", or "safe"
+# - auto: Automatically enable/disable integrated WiFi based on adapter detection
+# - safe: Only re-enables integrated WiFi if no adapter detected (prevents lockout)
+# - manual: Full manual control via web UI only
+main.plugins.wifi_adapter_manager.mode = "safe"
+
+# Check frequency (in epochs)
+# The plugin will check for adapter presence every N epochs
+# Default: 10 (checks approximately every 10 epochs)
+main.plugins.wifi_adapter_manager.check_interval = 10
+
+# Require external adapter to support monitor mode
+# If true, the plugin will only allow disabling integrated WiFi if the
+# external adapter supports monitor mode (required for Pwnagotchi operation)
+# Default: true
+main.plugins.wifi_adapter_manager.require_monitor_mode = true
+
+# Auto-reboot after configuration changes
+# If true, the system will automatically reboot after config.txt changes
+# WARNING: This will disconnect your session!
+# Default: false (manual reboot required)
+main.plugins.wifi_adapter_manager.auto_reboot = false
+
+# Display status on UI
+# Show adapter status on the Pwnagotchi display
+# Default: true
+main.plugins.wifi_adapter_manager.show_ui_status = true
+
+# =============================================================================
+# Usage Examples
+# =============================================================================
+
+# Example 1: Safe Mode (Recommended for beginners)
+# Only re-enables WiFi automatically if no external adapter detected
+# Will NOT automatically disable WiFi (manual control only)
+#
+# main.plugins.wifi_adapter_manager.mode = "safe"
+# main.plugins.wifi_adapter_manager.auto_reboot = false
+
+# Example 2: Fully Automatic Mode (Advanced users)
+# Automatically manages WiFi based on adapter detection
+# WARNING: Ensure external adapter is properly configured before using!
+#
+# main.plugins.wifi_adapter_manager.mode = "auto"
+# main.plugins.wifi_adapter_manager.auto_reboot = false
+
+# Example 3: Manual Control Only
+# No automatic changes, use web UI at:
+# http://your-pwnagotchi-ip:8080/plugins/wifi_adapter_manager
+#
+# main.plugins.wifi_adapter_manager.mode = "manual"
+
+# =============================================================================
+# Important Notes
+# =============================================================================
+#
+# 1. ALWAYS test your external adapter before disabling integrated WiFi!
+#    - Ensure it's detected: sudo iw dev
+#    - Check monitor mode: sudo iw <interface> set monitor none
+#    - Test with Pwnagotchi: sudo systemctl stop pwnagotchi; sudo pwnagotchi
+#
+# 2. Access the web UI to view current status and manually control WiFi:
+#    http://<pwnagotchi-ip>:8080/plugins/wifi_adapter_manager
+#
+# 3. If you get locked out (no WiFi interface available):
+#    - Connect via USB/Bluetooth tethering
+#    - Or: Remove SD card, edit /boot/config.txt on another computer
+#    - Remove the line: dtoverlay=disable-wifi
+#
+# 4. Recommended workflow:
+#    a. Install external adapter
+#    b. Enable plugin in "manual" mode
+#    c. Verify external adapter works via web UI
+#    d. Manually disable integrated WiFi via web UI
+#    e. Reboot and test
+#    f. Switch to "safe" or "auto" mode once confirmed working
+#
+# 5. The plugin creates a status file at: /root/.wifi_adapter_manager_status.json
+#    This tracks the state across reboots
+#
