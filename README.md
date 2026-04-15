@@ -8,8 +8,8 @@ RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum
 
 ## Custom Plugins
 
-- bt-tether - Slightly edited bt-tether for network route metric settings
 - s3_upload - Uploads all handshakes, geojson, potfiles, and hash files to S3 Minio Endpoint on internet connection
+- whisplay_display - Whisplay HAT backlight, audio chimes, and UI status integration
 
 ## 🚀 Easy Installation
 
@@ -29,6 +29,8 @@ Then run:
 ```bash
 sudo pwnagotchi plugins update
 sudo pwnagotchi plugins install s3_upload
+# or
+sudo pwnagotchi plugins install whisplay_display
 ```
 
 ## Companion Apps
@@ -64,6 +66,8 @@ A selection of the most consistent fitting 3D printed cases based on tolerances 
 All referenced plugins will have source repository linked such as above
 
 This repo is soley for ease of install of wip and custom plugins.
+
+`bt-tether` has been moved to `wip/` since newer upstream Pwnagotchi builds may already include the needed fixes.
 
 
 

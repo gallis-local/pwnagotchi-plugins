@@ -1,22 +1,5 @@
 # Plugins
 
-## bt-tether
-
-[Source as of (v2.9.5.3)](https://github.com/jayofelony/pwnagotchi/issues/405#issuecomment-2961326871)
-
-[Pull Request](https://github.com/jayofelony/pwnagotchi/pull/407)
-
-
-✅ Fix: Create the Bluetooth PAN profile first
-
-You need to add a connection profile before you can modify it.
-
-Run this one-liner to create it:
-```
-nmcli connection add type bluetooth con-name "<NAME>'s iPhone" ifname "*" bluetooth.type panu bluetooth.bdaddr <MAC ADDRESS>
-nmcli connection modify "<Name>'s iPhone" connection.autoconnect yes connection.autoconnect-retries 0 ipv4.method manual ipv4.addresses 172.20.10.2/24 ipv4.gateway 172.20.10.1 ipv4.dns "8.8.8.8 1.1.1.1" ipv4.route-metric 50
-```
-
 ## s3_upload
 
 S3 Upload Files
@@ -31,3 +14,27 @@ main.plugins.s3_upload.endpoint_url = ""
 main.plugins.s3_upload.max_retries = 3
 main.plugins.s3_upload.retry_delay = 5
 ```
+
+## whisplay_display
+
+Whisplay HAT backlight and audio helper.
+
+```
+main.plugins.whisplay_display.enabled = false
+main.plugins.whisplay_display.backlight_pin = 24
+main.plugins.whisplay_display.boot_volume = 60
+main.plugins.whisplay_display.boot_chime = true
+main.plugins.whisplay_display.handshake_chime = true
+main.plugins.whisplay_display.active_brightness = 100
+main.plugins.whisplay_display.idle_brightness = 35
+main.plugins.whisplay_display.sleep_brightness = 10
+main.plugins.whisplay_display.boot_sound_file = "/etc/pwnagotchi/custom-plugins/whisplay_boot.wav"
+main.plugins.whisplay_display.handshake_sound_file = "/etc/pwnagotchi/custom-plugins/whisplay_chime.wav"
+```
+
+- Optional `whisplay_boot.wav` and `whisplay_chime.wav` files can live beside the plugin, or you can override the paths in config.
+- This plugin handles backlight, audio, and UI feedback. Your TFT panel driver still needs to be configured separately in the image if required by your hardware.
+
+## WIP
+
+`bt-tether` has been moved to [wip/bt-tether.py](/mnt/d/Github/pwnagotchi-plugins/wip/bt-tether.py) because the latest upstream Pwnagotchi version may already include the relevant fix.

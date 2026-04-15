@@ -1,4 +1,5 @@
 # https://github.com/jayofelony/pwnagotchi/issues/405#issuecomment-2961326871
+# Archived in wip while validating whether newer upstream Pwnagotchi releases already cover this fix.
 import logging
 import subprocess
 import re
@@ -188,7 +189,7 @@ class BTTether(plugins.Plugin):
             else:
                 logging.error(f"[BT-Tether] Wrong DNS setting: '{dns}'")
             return
-        dns = re.sub("[\s,;]+", " ", dns).strip()  # DNS cleaning
+        dns = re.sub(r"[\s,;]+", " ", dns).strip()  # DNS cleaning
 
         try:
             # Configure connection. Metric is set to 200 to prefer connection over USB
