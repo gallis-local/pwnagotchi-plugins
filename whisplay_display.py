@@ -29,6 +29,8 @@ DEFAULT_PWM_FREQUENCY = 1000
 DEFAULT_ACTIVE_BRIGHTNESS = 100
 DEFAULT_IDLE_BRIGHTNESS = 35
 DEFAULT_SLEEP_BRIGHTNESS = 10
+DEFAULT_ALSA_CONTROL = "Master"
+DEFAULT_UI_POSITION = (0, 92)
 
 
 def _coerce_int(value, fallback):
@@ -45,6 +47,8 @@ def _coerce_percent(value, fallback):
 def _coerce_bool(value, fallback=False):
     if isinstance(value, bool):
         return value
+    if isinstance(value, int):
+        return bool(value)
     if isinstance(value, str):
         normalized = value.strip().lower()
         if normalized in ("1", "true", "yes", "on"):
@@ -54,16 +58,15 @@ def _coerce_bool(value, fallback=False):
     return fallback
 
 
-def _set_volume(percent):
-    """Set ALSA master volume (0-100)."""
+def _set_volume(percent, control=DEFAULT_ALSA_CONTROL):
     try:
         subprocess.run(
-            ["amixer", "-q", "sset", "Master", f"{_coerce_percent(percent, DEFAULT_VOLUME)}%"],
+            ["amixer", "-q", "sset", control, f"{_coerce_percent(percent, DEFAULT_VOLUME)}%"],
             check=True,
             timeout=5,
         )
     except Exception as exc:
-        log.warning("[whisplay] volume set failed: %s", exc)
+        log.warning("[whisplay] volume set failed (control=%s): %s", control, exc)
 
 
 def _play_sound(path):
@@ -86,7 +89,7 @@ def _play_sound(path):
 
 class WhisplayDisplay(plugins.Plugin):
     __author__ = "mobile-rpi"
-    __version__ = "1.0.0"
+    __version__ = "1.1.0"
     __license__ = "MIT"
     __description__ = (
         "Whisplay HAT backlight, audio, and lightweight UI integration for pwnagotchi."
@@ -101,11 +104,13 @@ class WhisplayDisplay(plugins.Plugin):
         self._active_brightness = DEFAULT_ACTIVE_BRIGHTNESS
         self._idle_brightness = DEFAULT_IDLE_BRIGHTNESS
         self._sleep_brightness = DEFAULT_SLEEP_BRIGHTNESS
+        self._alsa_control = DEFAULT_ALSA_CONTROL
         self._boot_sound = DEFAULT_BOOT_SOUND
         self._handshake_sound = DEFAULT_CHIME_FILE
         self._boot_chime = True
         self._handshake_chime = True
         self._session_handshakes = 0
+        self._handshake_lock = threading.Lock()
 
     def _init_backlight(self):
         try:
@@ -118,7 +123,8 @@ class WhisplayDisplay(plugins.Plugin):
 
             try:
                 self._backlight_pwm = GPIO.PWM(self._backlight_pin, self._pwm_frequency)
-                self._backlight_pwm.start(0)
+                # Start at active brightness to avoid a dark flash on boot
+                self._backlight_pwm.start(self._active_brightness)
                 log.info(
                     "[whisplay] backlight PWM enabled on GPIO %s at %s Hz",
                     self._backlight_pin,
@@ -192,6 +198,7 @@ class WhisplayDisplay(plugins.Plugin):
             self.options.get("sleep_brightness", DEFAULT_SLEEP_BRIGHTNESS),
             DEFAULT_SLEEP_BRIGHTNESS,
         )
+        self._alsa_control = self.options.get("alsa_control", DEFAULT_ALSA_CONTROL)
         self._boot_chime = _coerce_bool(self.options.get("boot_chime", True), True)
         self._handshake_chime = _coerce_bool(self.options.get("handshake_chime", True), True)
         self._boot_sound = self.options.get("boot_sound_file", DEFAULT_BOOT_SOUND)
@@ -200,7 +207,7 @@ class WhisplayDisplay(plugins.Plugin):
 
         self._init_backlight()
         self._set_backlight(self._active_brightness)
-        _set_volume(self._boot_volume)
+        _set_volume(self._boot_volume, self._alsa_control)
 
         if self._boot_chime:
             _play_sound(self._boot_sound)
@@ -210,15 +217,16 @@ class WhisplayDisplay(plugins.Plugin):
         self._shutdown_backlight()
 
     def on_ui_setup(self, ui):
-        """Add a small status label to the pwnagotchi UI."""
         try:
+            x = _coerce_int(self.options.get("ui_position_x", DEFAULT_UI_POSITION[0]), DEFAULT_UI_POSITION[0])
+            y = _coerce_int(self.options.get("ui_position_y", DEFAULT_UI_POSITION[1]), DEFAULT_UI_POSITION[1])
             ui.add_element(
                 "whisplay_status",
                 LabeledValue(
                     color=BLACK,
                     label="HAT",
                     value="HS:0",
-                    position=(max(ui.width() - 66, 0), 0),
+                    position=(x, y),
                     label_font=fonts.Bold,
                     text_font=fonts.Medium,
                 ),
@@ -228,7 +236,9 @@ class WhisplayDisplay(plugins.Plugin):
 
     def on_ui_update(self, ui):
         try:
-            ui.set("whisplay_status", f"HS:{self._session_handshakes}")
+            with self._handshake_lock:
+                count = self._session_handshakes
+            ui.set("whisplay_status", f"HS:{count}")
         except Exception:
             pass
 
@@ -237,21 +247,24 @@ class WhisplayDisplay(plugins.Plugin):
         self._set_backlight(self._active_brightness)
 
     def on_handshake(self, agent, filename, access_point, client_station):
-        self._session_handshakes += 1
+        with self._handshake_lock:
+            self._session_handshakes += 1
+            count = self._session_handshakes
 
-        hostname = access_point.get("hostname", "?") if access_point else "?"
-        mac = access_point.get("mac", "?") if access_point else "?"
+        essid = access_point.get("essid", "?") if access_point else "?"
+        bssid = access_point.get("bssid", "?") if access_point else "?"
 
-        log.info("[whisplay] handshake #%s: %s (%s)", self._session_handshakes, hostname, mac)
+        log.info("[whisplay] handshake #%s: %s (%s)", count, essid, bssid)
 
         if self._handshake_chime:
             _play_sound(self._handshake_sound)
 
     def on_epoch(self, agent, epoch, epoch_data):
-        excited = False
+        # Use reward > 0 as the "active/excited" signal — pwnagotchi has no "excited" key
+        active = False
         if epoch_data:
-            excited = _coerce_bool(epoch_data.get("excited", False), False)
-        self._set_backlight(self._active_brightness if excited else self._idle_brightness)
+            active = _coerce_int(epoch_data.get("reward", 0), 0) > 0
+        self._set_backlight(self._active_brightness if active else self._idle_brightness)
 
     def on_sleep(self, agent):
         log.info("[whisplay] pwnagotchi sleeping")
@@ -265,10 +278,10 @@ class WhisplayDisplay(plugins.Plugin):
         log.info("[whisplay] internet available")
 
     def on_association(self, agent, access_point):
-        hostname = access_point.get("hostname", "?") if access_point else "?"
-        log.debug("[whisplay] associated with %s", hostname)
+        essid = access_point.get("essid", "?") if access_point else "?"
+        log.debug("[whisplay] associated with %s", essid)
 
     def on_deauthentication(self, agent, access_point, client_station):
-        hostname = access_point.get("hostname", "?") if access_point else "?"
+        essid = access_point.get("essid", "?") if access_point else "?"
         client_mac = client_station.get("mac", "?") if client_station else "?"
-        log.debug("[whisplay] deauth - AP: %s client: %s", hostname, client_mac)
+        log.debug("[whisplay] deauth - AP: %s client: %s", essid, client_mac)
