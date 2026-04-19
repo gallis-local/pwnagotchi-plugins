@@ -7,7 +7,7 @@ RPIZERO2W Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum-ice/pwnagotchi/releases)
 
 ## Custom Display
-- whisplay_hat - Backlight, and UI status integration for the PiSugar Whisplay HAT (240×280 ST7789 + WM8960 I2S DAC)
+- Whisplay Hat - Backlight, and UI status integration for the PiSugar Whisplay HAT (240×280 ST7789 + WM8960 I2S DAC)
 
 ## Custom Plugins
 

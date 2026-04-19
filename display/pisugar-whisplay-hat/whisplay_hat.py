@@ -1,6 +1,8 @@
 import logging
 import time
 
+from PIL import Image, ImageDraw
+
 import pwnagotchi.ui.fonts as fonts
 from pwnagotchi.ui.hw.base import DisplayImpl
 
@@ -8,7 +10,7 @@ log = logging.getLogger(__name__)
 
 LCD_WIDTH     = 240
 LCD_HEIGHT    = 280
-CORNER_RADIUS = 30   # physical screen has rounded corners; pixels outside are not visible
+CORNER_RADIUS = 25   # matches WhisPlay CornerHeight; pixels in the rounded corners are not visible
 
 
 class WhisplayHat(DisplayImpl):
@@ -27,17 +29,19 @@ class WhisplayHat(DisplayImpl):
         self._layout['height']      = LCD_HEIGHT
         self._layout['face']        = (0,   50)
         self._layout['name']        = (5,   20)
-        # Top-bar elements shifted inward to stay clear of rounded corners
-        self._layout['channel']     = (8,    3)
-        self._layout['aps']         = (36,   3)
-        self._layout['uptime']      = (155,  3)
-        self._layout['line1']       = [0, 14, LCD_WIDTH, 14]
-        self._layout['line2']       = [0, LCD_HEIGHT - 20, LCD_WIDTH, LCD_HEIGHT - 20]
+        # Top-bar: channel / aps / uptime spread across the left 3/5 of the bar.
+        # pisugarx BAT is patched to the lower-middle section so it no longer
+        # occupies the top bar at all.
+        self._layout['channel']     = (16,   5)
+        self._layout['aps']         = (43,   5)
+        self._layout['uptime']      = (148,  5)
+        self._layout['line1']       = [0, 16, LCD_WIDTH, 16]
+        self._layout['line2']       = [0, LCD_HEIGHT - 22, LCD_WIDTH, LCD_HEIGHT - 22]
         self._layout['friend_face'] = (0,  130)
         self._layout['friend_name'] = (40, 132)
         # Bottom-bar elements inset from lower corners
-        self._layout['shakes']      = (8,  LCD_HEIGHT - 18)
-        self._layout['mode']        = (205, LCD_HEIGHT - 18)
+        self._layout['shakes']      = (16,  LCD_HEIGHT - 17)
+        self._layout['mode']        = (198, LCD_HEIGHT - 17)
         self._layout['status'] = {
             'pos':  (125, 20),
             'font': fonts.status_font(fonts.Medium),
@@ -122,7 +126,6 @@ class WhisplayHat(DisplayImpl):
         Built once and cached.
         """
         if self._mask is None:
-            from PIL import Image, ImageDraw
             mask = Image.new("L", (LCD_WIDTH, LCD_HEIGHT), 0)
             d = ImageDraw.Draw(mask)
             r = CORNER_RADIUS
