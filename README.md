@@ -6,10 +6,12 @@ RPIZERO2W Base Image of [JayofFelony - Pwnagotchi Image](https://github.com/jayo
 
 RPI4 Base Image of [aluminum-ice - Pwnagotchi Image](https://github.com/aluminum-ice/pwnagotchi/releases)
 
+## Custom Display
+- whisplay_hat - Backlight, and UI status integration for the PiSugar Whisplay HAT (240×280 ST7789 + WM8960 I2S DAC)
+
 ## Custom Plugins
 
 - s3_upload - Uploads all handshakes, geojson, potfiles, and hash files to S3 Minio Endpoint on internet connection
-- whisplay_display - Whisplay HAT backlight, audio chimes, and UI status integration
 
 ## 🚀 Easy Installation
 
